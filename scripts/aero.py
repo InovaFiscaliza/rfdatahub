@@ -9,6 +9,7 @@ def main():
 	data = Aero()
 
 	data.update()
+	data.save()
 
 	print(150 * '=')
 
