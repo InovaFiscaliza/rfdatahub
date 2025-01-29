@@ -311,11 +311,11 @@ def merge_dicts(json_log: str):
 	output_list = []
 
 	for log_dict in merged_dict.values():
-		if log_dict.get("Coluna") == "#Estação":
-			if value := log_dict.get("Original"):
+		if log_dict.get('Coluna') == '#Estação':
+			if value := log_dict.get('Original'):
 				value = eval(value)
 				if isinstance(value, list):
-					log_dict["Original"] = str(sorted(list(set(value))))
+					log_dict['Original'] = str(sorted(list(set(value))))
 				output_list.append(log_dict)
 
 	return json.dumps(output_list, ensure_ascii=False)
