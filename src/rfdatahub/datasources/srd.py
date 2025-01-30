@@ -11,7 +11,7 @@ from decimal import Decimal
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 
-from extracao.constants import BW_MAP, COLS_SRD, DICT_SRD, MONGO_SRD, PROJECTION_SRD, RELATORIO_SRD
+from rfdatahub.constants import BW_MAP, COLS_SRD, DICT_SRD, MONGO_SRD, PROJECTION_SRD, RELATORIO_SRD
 
 from .mosaico import Mosaico
 

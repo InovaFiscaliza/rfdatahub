@@ -6,7 +6,7 @@ import time
 import typer
 from dotenv import find_dotenv, load_dotenv
 from fastcore.xtras import Path
-from extracao.datasources.sitarweb import Stel
+from rfdatahub.datasources.sitarweb import Stel
 
 
 load_dotenv(find_dotenv(), override=True)

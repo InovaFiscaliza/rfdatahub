@@ -1,6 +1,6 @@
 import time
 import typer
-from extracao.datasources.aeronautica import Aero
+from rfdatahub.datasources.aeronautica import Aero
 
 
 def main():

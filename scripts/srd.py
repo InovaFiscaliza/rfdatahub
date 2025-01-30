@@ -1,5 +1,5 @@
 import time
-from extracao.datasources.srd import SRD
+from rfdatahub.datasources.srd import SRD
 import typer
 
 

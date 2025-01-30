@@ -1,5 +1,5 @@
 import time
-from extracao.datasources.smp import Smp
+from rfdatahub.datasources.smp import Smp
 import typer
 
 

@@ -1,4 +1,4 @@
-from extracao.stations import Estacoes
+from rfdatahub.stations import Estacoes
 import pandas as pd
 from fastcore.xtras import Path
 import time

@@ -12,7 +12,7 @@ import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 from fastcore.foundation import GetAttr
 
-from extracao.constants import (
+from rfdatahub.constants import (
 	COLUNAS,
 	SQL_RADCOM,
 	SQL_STEL,

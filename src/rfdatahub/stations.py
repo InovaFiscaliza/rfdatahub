@@ -12,8 +12,8 @@ from dotenv import find_dotenv, load_dotenv
 from fastcore.foundation import L
 from fastcore.parallel import parallel
 
-from extracao.constants import COLS_SRD
-from extracao.location import Geography
+from rfdatahub.constants import COLS_SRD
+from rfdatahub.location import Geography
 
 from .datasources.aeronautica import Aero
 from .datasources.base import Base

@@ -12,7 +12,7 @@ import pandas as pd
 
 from dotenv import find_dotenv, load_dotenv
 
-from extracao.constants import (
+from rfdatahub.constants import (
 	AGG_LICENCIAMENTO,
 	COLUNAS,
 	DICT_LICENCIAMENTO,

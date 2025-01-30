@@ -8,7 +8,7 @@ import typer
 from dotenv import find_dotenv, load_dotenv
 from fastcore.xtras import Path
 
-from extracao.stations import Estacoes
+from rfdatahub.stations import Estacoes
 
 load_dotenv(find_dotenv(), override=True)
 warnings.simplefilter('ignore')

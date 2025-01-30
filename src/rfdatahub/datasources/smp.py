@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from dotenv import find_dotenv, load_dotenv
 
-from extracao.constants import (
+from rfdatahub.constants import (
 	AGG_SMP,
 	CHANNELS,
 	COLUNAS,
@@ -20,7 +20,7 @@ from extracao.constants import (
 	PROJECTION_LICENCIAMENTO,
 )
 from .mosaico import Mosaico
-from extracao.location import Geography
+from rfdatahub.location import Geography
 
 # %% ../../nbs/01g_smp.ipynb 5
 load_dotenv(find_dotenv())

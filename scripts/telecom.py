@@ -1,5 +1,5 @@
 import time
-from extracao.datasources.telecom import Telecom
+from rfdatahub.datasources.telecom import Telecom
 import typer
 
 

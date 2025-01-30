@@ -1,3 +1,18 @@
+[project]
+name = "rfdatahub"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "ronaldokun", email = "ronaldokun@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [tool.ruff.lint]
 select = ["PL"]
 
@@ -7,4 +22,11 @@ line-length = 100
 [tool.ruff.format]
 quote-style = "single"
 indent-style = "tab"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
+    "nbdev>=2.3.34",
+    "ruff>=0.9.3",
+]
 

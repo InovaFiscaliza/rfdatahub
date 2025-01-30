@@ -17,8 +17,8 @@ from rich import print as pp
 tqdm.pandas()
 
 
-from extracao.constants import IBGE_MUNICIPIOS, IBGE_POLIGONO, MALHA_IBGE
-from extracao.datasources.base import Base
+from rfdatahub.constants import IBGE_MUNICIPIOS, IBGE_POLIGONO, MALHA_IBGE
+from rfdatahub.datasources.base import Base
 
 
 # Load environment variables from .env file
