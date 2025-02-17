@@ -154,7 +154,9 @@ checklink/cookies.txt
 *.prj
 
 # output folder
-extracao/datasources/arquivos/saida
+src/rfdatahub/datasources/arquivos/saida/
+src/rfdatahub/datasources/arquivos/BR_Municipios_2022/
+
 
 # VSCODE Files
 .virtual_documents
