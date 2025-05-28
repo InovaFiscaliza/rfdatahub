@@ -103,7 +103,7 @@ class Mosaico(Base, GetAttr):
 			df['Estação']
 			.astype('string', copy=False)
 			.fillna('-1')
-			.astype('int', copy=False, errors='coerce')
+			.astype('int', copy=False, errors='ignore')
 		)
 		df = df.sort_values('Estação', ignore_index=True)
 		df['Largura_Emissão(kHz)'] = pd.to_numeric(df['Largura_Emissão(kHz)'], errors='coerce')
