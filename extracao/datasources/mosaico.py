@@ -100,7 +100,10 @@ class Mosaico(Base, GetAttr):
         Columns considered are defined by agg_cols 
         """
 		df['Estação'] = (
-			df['Estação'].astype('string', copy=False).fillna('-1').astype('int', copy=False)
+			df['Estação']
+			.astype('string', copy=False)
+			.fillna('-1')
+			.astype('int', copy=False, errors='coerce')
 		)
 		df = df.sort_values('Estação', ignore_index=True)
 		df['Largura_Emissão(kHz)'] = pd.to_numeric(df['Largura_Emissão(kHz)'], errors='coerce')
