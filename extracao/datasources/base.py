@@ -44,9 +44,9 @@ class Base:
 		folder = Path(folder)
 		folder.mkdir(parents=True, exist_ok=True)
 		try:
-			file = Path(f'{folder}/{stem}.parquet.gzip')
+			file = Path(f'{folder}/{stem}.parquet')
 			df.astype('category').to_parquet(
-				file, compression='gzip', index=False, engine='pyarrow'
+				file, index=False, engine='pyarrow'
 			)
 		except (ArrowInvalid, ArrowTypeError) as e:
 			raise Exception(f'Não foi possível salvar o arquivo parquet') from e
