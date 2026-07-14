@@ -1,10 +1,41 @@
-[tool.ruff.lint]
-select = ["PL"]
+[build-system]
+requires = ["setuptools<82"]
+build-backend = "setuptools.build_meta"
 
-[tool.ruff]
-line-length = 100
+[project]
+name = "extracao"
+dynamic = ["version"]
+description = "This repository hold automation scripts to fetch, clean and merge data from licensed telecomunications entities available at ANATEL Database Systems."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache-2.0"}
+authors = [{name = "Ronaldo S.A. Batista", email = "rsilva@anatel.gov.br"}]
+keywords = ['sql', 'mongo', 'api', 'pandas', 'geopandas', 'shapely', 'geopy']
+classifiers = ["Natural Language :: English", "Intended Audience :: Developers", "Development Status :: 3 - Alpha", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3 :: Only"]
+dependencies = ['setuptools<82', 'fastcore', 'fastprogress', 'pyodbc', 'pymongo', 'pandas', 'geopandas', 'shapely', 'pyarrow', 'rich', 'geopy', 'tqdm', 'xmltodict', 'python-dotenv', 'requests', 'typer']
 
-[tool.ruff.format]
-quote-style = "single"
-indent-style = "tab"
+[project.urls]
+Repository = "https://github.com/InovaFiscaliza/rfdatahub"
+Documentation = "https://InovaFiscaliza.github.io/rfdatahub/"
 
+[project.entry-points.nbdev]
+extracao = "extracao._modidx:d"
+
+[project.optional-dependencies]
+dev = ['nbdev', 'filprofiler', 'setuptools']
+
+[tool.setuptools.dynamic]
+version = {attr = "extracao.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["extracao"]
+
+[tool.uv.extra-build-dependencies]
+extracao = ["setuptools<82"]
+
+[tool.nbdev]
+branch = 'master'
+recursive = false
+jupyter_hooks = true
+custom_sidebar = true
+title = 'Telecomunicações e Radiodifusão'
