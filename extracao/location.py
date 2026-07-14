@@ -2,6 +2,7 @@ from typing import Dict
 
 from functools import cached_property
 import urllib.request
+import ssl
 
 from zipfile import ZipFile
 
@@ -15,6 +16,9 @@ from tqdm.auto import tqdm
 from rich import print as pp
 
 tqdm.pandas()
+
+ssl._create_default_https_context = ssl._create_unverified_context
+
 
 
 from extracao.constants import IBGE_MUNICIPIOS, IBGE_POLIGONO, MALHA_IBGE
@@ -62,6 +66,7 @@ class Geography:
 		if not all(required_files.map(Path.is_file)):
 			# shutil.rmtree(str(shapefile_path.parent), ignore_errors=True)
 			parent_folder.ls().map(Path.unlink)
+			
 			# Download and unzip the zipped folder
 			urllib.request.urlretrieve(MALHA_IBGE, zip_file_path)
 			with ZipFile(zip_file_path, 'r') as zip_ref:
