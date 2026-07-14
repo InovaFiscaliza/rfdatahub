@@ -106,7 +106,7 @@ class Mosaico(Base, GetAttr):
         df: pd.DataFrame,  # DataFrame com os dados de Estações
         agg_cols: list,  # Lista de colunas a serem agrupadas
     ) -> pd.DataFrame:  # DataFrame com os dados duplicados excluídos
-        f"""Exclude and log the duplicated rows
+        """Exclude and log the duplicated rows
         Columns considered are defined by agg_cols 
         """
         df["Estação"] = (
@@ -151,7 +151,7 @@ class Mosaico(Base, GetAttr):
         df_sub["#Estação"] = df_sub["#Estação"].astype("string", copy=False)
 
         row_filter = df_sub["Multiplicidade"] > 1
-        processing = f"Registro agrupado."  # Colunas consideradas: {agg_cols}'
+        processing = "Registro agrupado."  # Colunas consideradas: {agg_cols}'
         # TODO: Adicionar nova chave "Colunas Consideradas"
         Mosaico.register_log(
             df_sub, processing, column="#Estação", row_filter=row_filter

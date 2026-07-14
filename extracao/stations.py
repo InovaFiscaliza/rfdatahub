@@ -4,7 +4,6 @@
 __all__ = ["Estacoes"]
 
 # %% ../nbs/04_estacoes.ipynb 3
-from collections import defaultdict
 
 
 import pandas as pd

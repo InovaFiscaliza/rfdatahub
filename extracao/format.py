@@ -20,14 +20,11 @@ import pandas as pd
 from rich import print as pp
 from dotenv import find_dotenv, load_dotenv
 from fastcore.utils import listify
-from fastcore.foundation import L
 
 from geopy.distance import geodesic
 from tqdm.auto import tqdm
 
 from .constants import (
-    APP_ANALISE_EN,
-    APP_ANALISE_PT,
     BW,
     CAT_COLUMNS,
     FLOAT_COLUMNS,
@@ -319,7 +316,6 @@ def merge_dicts(json_log: str):
     Retorno:
       Um dicionário com os dicionários mesclados.
     """
-    from collections import Counter
 
     if not (list_of_dicts := [i for i in json.loads(json_log) if i != "[]"]):
         return "[]"

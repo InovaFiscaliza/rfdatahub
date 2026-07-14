@@ -5,7 +5,6 @@ __all__ = ["MONGO_URI", "Telecom"]
 
 # %% ../../nbs/01f_telecom.ipynb 3
 import os
-import gc
 
 
 import pandas as pd

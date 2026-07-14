@@ -15,13 +15,15 @@ import geopandas as gpd
 from tqdm.auto import tqdm
 from rich import print as pp
 
+from extracao.constants import IBGE_MUNICIPIOS, IBGE_POLIGONO, MALHA_IBGE
+from extracao.datasources.base import Base
+
+
 tqdm.pandas()
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
 
-from extracao.constants import IBGE_MUNICIPIOS, IBGE_POLIGONO, MALHA_IBGE
-from extracao.datasources.base import Base
 
 
 # Load environment variables from .env file
@@ -86,13 +88,13 @@ class Geography:
 
     def log_empty_coords(self):
         """Log the rows with empty coordinates"""
-        rows = self.log["empty_coords"]
+        self.log["empty_coords"]
         # processing = 'Coordenadas nulas.'
         # Base.register_log(self.df, processing, row_filter=rows)
 
     def log_empty_code(self):
         """Log the rows with empty city code"""
-        rows = self.log["empty_code"]
+        self.log["empty_code"]
         # processing = 'Código do Município nulo.'
         # Base.register_log(self.df, processing, row_filter=rows)
 
@@ -115,7 +117,7 @@ class Geography:
             bad_coords = ~self.log["empty_coords"]
             bad_coords &= self.df[column].isna()
             self.log.update({"coords_not_numeric": bad_coords})
-            Base.register_log(self.df, f"Valor Inválido.", f"#{column}", bad_coords)
+            Base.register_log(self.df, "Valor Inválido.", f"#{column}", bad_coords)
             self.df.drop(columns=[f"#{column}"], inplace=True)
 
     def validate_codigo_municipio_as_number(self) -> None:

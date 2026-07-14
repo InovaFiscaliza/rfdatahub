@@ -209,7 +209,7 @@ class Smp(Mosaico):
         df.loc[row_filter, "Latitude"] = df.loc[row_filter, "Latitude_IBGE"]
         df.loc[row_filter, "Longitude"] = df.loc[row_filter, "Longitude_IBGE"]
         for column in ("Latitude", "Longitude"):
-            log = f"Coordenadas do Município inseridas."
+            log = "Coordenadas do Município inseridas."
             Mosaico.register_log(df, log, column, row_filter)
         return df
 

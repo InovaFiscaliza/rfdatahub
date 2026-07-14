@@ -8,7 +8,7 @@ import json
 import re
 from dataclasses import dataclass
 from functools import cached_property, partial
-from typing import Tuple, Union, List, Any
+from typing import Tuple, Union, Any
 
 import pandas as pd
 from rich import print as pp
@@ -51,7 +51,7 @@ class Base:
             file = Path(f"{folder}/{stem}.parquet")
             df.astype("category").to_parquet(file, index=False, engine="pyarrow")
         except (ArrowInvalid, ArrowTypeError) as e:
-            raise Exception(f"Não foi possível salvar o arquivo parquet") from e
+            raise Exception("Não foi possível salvar o arquivo parquet") from e
         return df
 
     @cached_property

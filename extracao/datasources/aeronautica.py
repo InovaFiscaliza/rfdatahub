@@ -4,9 +4,7 @@
 __all__ = ["Aero"]
 
 # %% ../../nbs/03_aero.ipynb 3
-import os
 from typing import List, Union, Iterable
-from functools import cached_property
 
 
 import numpy as np
@@ -42,7 +40,8 @@ class Aero(Base):
         return ["Frequência", "Latitude", "Longitude", "Entidade", "Fonte"]
 
     def extraction(self) -> Iterable:
-        func = lambda f: f()
+        def func(f):
+            return f()
         radares = pd.read_csv(Path(__file__).parent / "arquivos" / "radares.csv")
         radares["Fonte"] = "RADAR"
         sources = [get_icao, get_aisw, get_aisg, get_redemet]
