@@ -21,6 +21,9 @@ Documentation = "https://InovaFiscaliza.github.io/rfdatahub/"
 [project.entry-points.nbdev]
 extracao = "extracao._modidx:d"
 
+[project.optional-dependencies]
+dev = ['nbdev', 'filprofiler', 'setuptools']
+
 [tool.setuptools.dynamic]
 version = {attr = "extracao.__version__"}
 
@@ -36,8 +39,3 @@ recursive = false
 jupyter_hooks = true
 custom_sidebar = true
 title = 'Telecomunicações e Radiodifusão'
-
-[dependency-groups]
-dev = [
-    "nbdev>=2.3.36",
-]
