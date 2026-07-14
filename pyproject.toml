@@ -12,7 +12,7 @@ license = {text = "Apache-2.0"}
 authors = [{name = "Ronaldo S.A. Batista", email = "rsilva@anatel.gov.br"}]
 keywords = ['sql', 'mongo', 'api', 'pandas', 'geopandas', 'shapely', 'geopy']
 classifiers = ["Natural Language :: English", "Intended Audience :: Developers", "Development Status :: 3 - Alpha", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3 :: Only"]
-dependencies = ['setuptools<82', 'fastcore', 'fastprogress', 'pyodbc', 'pymongo', 'pandas', 'geopandas', 'shapely', 'pyarrow', 'rich', 'geopy', 'tqdm', 'xmltodict', 'python-dotenv', 'requests', 'typer']
+dependencies = ['setuptools<82', 'fastcore', 'fastprogress', 'pyodbc', 'pymongo<4.14', 'pandas', 'geopandas', 'shapely', 'pyarrow', 'rich', 'geopy', 'tqdm', 'xmltodict', 'python-dotenv', 'requests', 'typer']
 
 [project.urls]
 Repository = "https://github.com/InovaFiscaliza/rfdatahub"
