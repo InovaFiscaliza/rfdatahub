@@ -41,20 +41,20 @@ UNIQUE_COLS = ['Frequência', 'Latitude', 'Longitude']
 # %% ../../nbs/02b_aisweb.ipynb 6
 def convert_latitude(
 	lat: str,  # Latitude
-) -> float:
-	"""Converte a Latitude para formato decimal"""
+) -> str:
+	"""Converte a Latitude para formato decimal e retorna como string"""
 	hemisphere = lat[-1]
 	multiplier = 1 if hemisphere == 'N' else -1
-	return multiplier * (float(lat[:2]) + float(lat[2:4]) / 60 + float(lat[5:7]) / 3600.0)
+	return str(multiplier * (float(lat[:2]) + float(lat[2:4]) / 60 + float(lat[5:7]) / 3600.0))
 
 
 def convert_longitude(
 	lon: str,  # Longitude
 ) -> float:
-	"""Converte a longitude para formato decimal"""
+	"""Converte a longitude para formato decimal e retorna como string"""
 	hemisphere = lon[-1]
 	multiplier = 1 if hemisphere == 'E' else -1
-	return multiplier * (float(lon[:3]) + float(lon[3:5]) / 60 + float(lon[6:8]) / 3600.0)
+	return str(multiplier * (float(lon[:3]) + float(lon[3:5]) / 60 + float(lon[6:8]) / 3600.0))
 
 
 # %% ../../nbs/02b_aisweb.ipynb 7
