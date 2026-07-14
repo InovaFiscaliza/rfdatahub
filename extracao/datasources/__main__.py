@@ -1,11 +1,11 @@
 __all__ = [
-	'Stel',
-	'Radcom',
-	'SQLSERVER_PARAMS',
-	'MONGO_URI',
-	'SRD',
-	'Telecom',
-	'Smp',
+    "Stel",
+    "Radcom",
+    "SQLSERVER_PARAMS",
+    "MONGO_URI",
+    "SRD",
+    "Telecom",
+    "Smp",
 ]
 
 from sitarweb import Stel, Radcom, SQLSERVER_PARAMS

@@ -2,13 +2,13 @@
 
 # %% auto 0
 __all__ = [
-	'COLS_NAV',
-	'COLS_COM',
-	'UNIQUE_COLS',
-	'convert_latitude',
-	'convert_longitude',
-	'map_channels',
-	'get_icao',
+    "COLS_NAV",
+    "COLS_COM",
+    "UNIQUE_COLS",
+    "convert_latitude",
+    "convert_longitude",
+    "map_channels",
+    "get_icao",
 ]
 
 # %% ../../nbs/02a_icao.ipynb 3
@@ -22,84 +22,96 @@ from ..constants import PATH_NAV, PATH_COM, VOR_ILS_DME
 load_dotenv(find_dotenv(), override=True)
 
 # %% ../../nbs/02a_icao.ipynb 6
-COLS_NAV = ['Frequency', 'Latitude', 'Longitude', 'Facility', 'Location', 'NS', 'WE']
-COLS_COM = ['Frequency', 'CoordLat', 'CoordLong', 'DOC', 'Location', 'NS', 'WE']
-UNIQUE_COLS = ['Frequência', 'Latitude', 'Longitude']
+COLS_NAV = ["Frequency", "Latitude", "Longitude", "Facility", "Location", "NS", "WE"]
+COLS_COM = ["Frequency", "CoordLat", "CoordLong", "DOC", "Location", "NS", "WE"]
+UNIQUE_COLS = ["Frequência", "Latitude", "Longitude"]
 
 
 # %% ../../nbs/02a_icao.ipynb 7
 def convert_latitude(
-	lat: str,  # Latitude
-	hemisphere: str,  # Hemisfério: N | S
+    lat: str,  # Latitude
+    hemisphere: str,  # Hemisfério: N | S
 ) -> float:
-	"""Converts the Latitude to decimal format"""
-	multiplier = 1 if hemisphere == 'N' else -1
-	return multiplier * (float(lat[:2]) + float(lat[3:5]) / 60 + float(lat[6:8]) / 3600.0)
+    """Converts the Latitude to decimal format"""
+    multiplier = 1 if hemisphere == "N" else -1
+    return multiplier * (
+        float(lat[:2]) + float(lat[3:5]) / 60 + float(lat[6:8]) / 3600.0
+    )
 
 
 def convert_longitude(
-	lon: str,  # Longitude
-	hemisphere: str,  # Hemisfério: W | E
+    lon: str,  # Longitude
+    hemisphere: str,  # Hemisfério: W | E
 ) -> float:
-	"""Converts the longitude to decimal format"""
+    """Converts the longitude to decimal format"""
 
-	multiplier = 1 if hemisphere == 'E' else -1
-	return multiplier * (float(lon[1:3]) + float(lon[4:6]) / 60 + float(lon[7:9]) / 3600.0)
+    multiplier = 1 if hemisphere == "E" else -1
+    return multiplier * (
+        float(lon[1:3]) + float(lon[4:6]) / 60 + float(lon[7:9]) / 3600.0
+    )
 
 
 # %% ../../nbs/02a_icao.ipynb 10
 
 
 def _read_df(
-	path: str,  # Path to file
-	usecols: Iterable[str],  # Subset of file columns
+    path: str,  # Path to file
+    usecols: Iterable[str],  # Subset of file columns
 ) -> pd.DataFrame:  # Formatted DataFrame
-	"""Reads the DataFrame at `path`, filters the `usecols` columns and returns it formatted"""
-	# sourcery skip: use-fstring-for-concatenation
-	df = pd.read_csv(path, dtype='string')[usecols]
-	df.columns = COLS_NAV
-	df['Latitude'] = df.apply(lambda x: convert_latitude(x['Latitude'], x['NS']), axis=1)
-	df['Longitude'] = df.apply(lambda x: convert_longitude(x['Longitude'], x['WE']), axis=1)
-	df['Description'] = df.Facility + ', ' + df.Location
-	df['Fonte'] = 'ICAO'
-	df = df[['Frequency', 'Latitude', 'Longitude', 'Description', 'Fonte']]
-	df.columns = ['Frequência', 'Latitude', 'Longitude', 'Entidade', 'Fonte']
-	return df
+    """Reads the DataFrame at `path`, filters the `usecols` columns and returns it formatted"""
+    # sourcery skip: use-fstring-for-concatenation
+    df = pd.read_csv(path, dtype="string")[usecols]
+    df.columns = COLS_NAV
+    df["Latitude"] = df.apply(
+        lambda x: convert_latitude(x["Latitude"], x["NS"]), axis=1
+    )
+    df["Longitude"] = df.apply(
+        lambda x: convert_longitude(x["Longitude"], x["WE"]), axis=1
+    )
+    df["Description"] = df.Facility + ", " + df.Location
+    df["Fonte"] = "ICAO"
+    df = df[["Frequency", "Latitude", "Longitude", "Description", "Fonte"]]
+    df.columns = ["Frequência", "Latitude", "Longitude", "Entidade", "Fonte"]
+    return df
 
 
 # %% ../../nbs/02a_icao.ipynb 11
 def map_channels(
-	df: pd.DataFrame,  # DataFrame dos dados de origem
-	origem: str,  # Descrição da emissão a ser substituída
+    df: pd.DataFrame,  # DataFrame dos dados de origem
+    origem: str,  # Descrição da emissão a ser substituída
 ) -> pd.DataFrame:
-	"""Mapeia os canais contidos em `df` e adiciona os registros ILS/DME caso houver"""
-	chs = pd.read_csv(VOR_ILS_DME, dtype='string', dtype_backend='pyarrow')
-	for row in df[df.Entidade.str.contains('ILS|DME')].itertuples():
-		if not (ch := chs[(chs.VOR_ILSloc == row.Frequência)]).empty:
-			for i, c in enumerate(ch.values[0][2:]):
-				if pd.notna(c):
-					if i == 0:
-						freq_type = 'ILS glide path'
-					elif i == 1:
-						freq_type = 'Airbone DME'
-					elif i == 2:
-						freq_type = 'Ground-based DME'
-					else:
-						raise ValueError('No additional frequency to map on channel')
-					entidade = row.Entidade + f'({freq_type})'
-					df.loc[len(df)] = [
-						c,
-						row.Latitude,
-						row.Longitude,
-						entidade,
-						f'{origem}-CANALIZACAO-VOR/ILS/DME',
-					]
-	return df
+    """Mapeia os canais contidos em `df` e adiciona os registros ILS/DME caso houver"""
+    chs = pd.read_csv(VOR_ILS_DME, dtype="string", dtype_backend="pyarrow")
+    for row in df[df.Entidade.str.contains("ILS|DME")].itertuples():
+        if not (ch := chs[(chs.VOR_ILSloc == row.Frequência)]).empty:
+            for i, c in enumerate(ch.values[0][2:]):
+                if pd.notna(c):
+                    if i == 0:
+                        freq_type = "ILS glide path"
+                    elif i == 1:
+                        freq_type = "Airbone DME"
+                    elif i == 2:
+                        freq_type = "Ground-based DME"
+                    else:
+                        raise ValueError("No additional frequency to map on channel")
+                    entidade = row.Entidade + f"({freq_type})"
+                    df.loc[len(df)] = [
+                        c,
+                        row.Latitude,
+                        row.Longitude,
+                        entidade,
+                        f"{origem}-CANALIZACAO-VOR/ILS/DME",
+                    ]
+    return df
 
 
 # %% ../../nbs/02a_icao.ipynb 12
-def get_icao() -> pd.DataFrame:  # DataFrame com frequências, coordenadas e descrição das estações
-	"""Lê, concatena e pós-processa os arquivos do ICAO"""
-	df = pd.concat(_read_df(p, c) for p, c in zip([PATH_NAV, PATH_COM], [COLS_NAV, COLS_COM]))
-	df = df.astype('string', copy=False)
-	return map_channels(df, 'ICAO').drop_duplicates(UNIQUE_COLS, ignore_index=True)
+def get_icao() -> (
+    pd.DataFrame
+):  # DataFrame com frequências, coordenadas e descrição das estações
+    """Lê, concatena e pós-processa os arquivos do ICAO"""
+    df = pd.concat(
+        _read_df(p, c) for p, c in zip([PATH_NAV, PATH_COM], [COLS_NAV, COLS_COM])
+    )
+    df = df.astype("string", copy=False)
+    return map_channels(df, "ICAO").drop_duplicates(UNIQUE_COLS, ignore_index=True)
