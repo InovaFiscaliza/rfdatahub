@@ -131,7 +131,7 @@ class Estacoes(Base):
 		log = df['Log'].progress_apply(merge_dicts)
 		labels, uniques = pd.factorize(log, sort=False)
 		log = pd.DataFrame({'Log': uniques}, dtype='string', copy=False)
-		log.to_parquet(f'{self.folder}/log.parquet.gzip', compression='gzip', index=False)
+		log.to_parquet(f'{self.folder}/log.parquet', compression='gzip', index=False)
 		df['Log'] = pd.to_numeric(labels, downcast='integer')
 		return df
 

@@ -13,7 +13,7 @@ df = pd.read_parquet(
 	/ 'datasources'
 	/ 'arquivos'
 	/ 'saida'
-	/ 'telecom.parquet.gzip'
+	/ 'telecom.parquet'
 )
 
 df = anatel.validate_coordinates(df)

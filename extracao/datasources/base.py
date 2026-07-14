@@ -33,7 +33,7 @@ class Base:
 
 	def _read(self, stem: str, backend: str = 'pyarrow') -> pd.DataFrame:
 		"""Lê o dataframe formado por self.folder / self.stem.parquet.gzip"""
-		file = Path(f'{self.folder}/{stem}.parquet.gzip')
+		file = Path(f'{self.folder}/{stem}.parquet')
 		try:
 			return pd.read_parquet(file, dtype_backend=backend).astype('string', copy=False)
 		except (ArrowInvalid, FileNotFoundError) as e:

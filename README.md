@@ -54,7 +54,7 @@
 
 ``` python
 pasta = Path.cwd().parent / 'dados'
-df = pd.read_parquet(pasta / 'radcom.parquet.gzip')
+df = pd.read_parquet(pasta / 'radcom.parquet')
 df.sample(5).iloc[:, :6]
 ```
 
@@ -484,7 +484,7 @@ bad.loc[:, ['Frequência', 'Entidade', 'Estação', 'Município', 'Latitude', 'L
 <summary>Code</summary>
 
 ``` python
-df = pd.read_parquet(pasta / 'stel.parquet.gzip')
+df = pd.read_parquet(pasta / 'stel.parquet')
 df[['Latitude', 'Longitude']] = df[['Latitude', 'Longitude']].astype('float')
 df.sample(5).iloc[:, :6]
 ```
@@ -906,7 +906,7 @@ bad.loc[:, ['Frequência', 'Entidade', 'Estação', 'Município', 'Latitude', 'L
 <summary>Code</summary>
 
 ``` python
-df = pd.read_parquet(pasta / 'srd.parquet.gzip')
+df = pd.read_parquet(pasta / 'srd.parquet')
 df[['Latitude', 'Longitude']] = df[['Latitude', 'Longitude']].astype('float')
 df.sample(5).iloc[:, :6]
 ```
@@ -1212,7 +1212,7 @@ bad.loc[:, ['Frequência', 'Entidade', 'Estação', 'Município', 'Latitude', 'L
 <summary>Code</summary>
 
 ``` python
-df = pd.read_parquet(pasta / 'telecom.parquet.gzip')
+df = pd.read_parquet(pasta / 'telecom.parquet')
 df[['Latitude', 'Longitude']] = df[['Latitude', 'Longitude']].astype('float')
 df.sample(5).iloc[:, :6]
 ```
@@ -1400,8 +1400,8 @@ print(f'A base do MOSAICO de Telecomunicações possui atualmente {len(df)} regi
 <summary>Code</summary>
 
 ``` python
-df = pd.read_parquet(pasta / 'smp_formated.parquet.gzip')
-df2 = pd.read_parquet(pasta / 'smp_processado.parquet.gzip')
+df = pd.read_parquet(pasta / 'smp_formated.parquet')
+df2 = pd.read_parquet(pasta / 'smp_processado.parquet')
 df[['Latitude', 'Longitude']] = df[['Latitude', 'Longitude']].astype('float')
 df.sample(5).iloc[:, :6]
 ```
@@ -1724,7 +1724,7 @@ entanto o processamento resultante é simples de descrever:
 <summary>Code</summary>
 
 ``` python
-df = pd.read_parquet(pasta / 'aero.parquet.gzip')
+df = pd.read_parquet(pasta / 'aero.parquet')
 for c in ['Latitude', 'Longitude']:
     df[c] = df[c].astype('float')
 df.sample(5).iloc[:, :6]
@@ -1801,7 +1801,7 @@ df.sample(5).iloc[:, :6]
 <summary>Code</summary>
 
 ``` python
-df = pd.read_parquet(pasta / 'base.parquet.gzip')
+df = pd.read_parquet(pasta / 'base.parquet')
 for c in ['Latitude', 'Longitude']:
     df[c] = df[c].astype('float')
 df.sample(5).iloc[:, :6]
@@ -1973,7 +1973,7 @@ formatado da seguinte forma:
 <summary>Code</summary>
 
 ``` python
-df = pd.read_parquet(pasta / 'AnatelDB.parquet.gzip')
+df = pd.read_parquet(pasta / 'AnatelDB.parquet')
 for c in ['Latitude', 'Longitude']:
     df[c] = df[c].astype('float')
 df.sample(5)
