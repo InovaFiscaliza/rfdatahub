@@ -10,9 +10,10 @@ import gc
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 from fastcore.foundation import GetAttr
+from fastcore.xtras import Path
 
-from .base import Base
-from .connectors import MongoDB
+from .base_refactored import Base, DatabaseConnector
+from .connectors_refactored import MongoDB
 
 # %% ../../nbs/01d_mosaico.ipynb 4
 load_dotenv(find_dotenv(), override=True)
@@ -29,7 +30,10 @@ class Mosaico(Base, GetAttr):
     def __init__(self, mongo_uri: str = MONGO_URI, read_cache: bool = False):
         self.read_cache = read_cache
         self.database = "sms"
-        self.default = MongoDB(mongo_uri)
+        db_connector = MongoDB(mongo_uri)
+        super().__init__(folder=Path(__file__).parent / "arquivos" / "saida", 
+                         read_cache=read_cache, 
+                         db_connector=db_connector)
 
     @property
     def collection(self):
@@ -50,12 +54,9 @@ class Mosaico(Base, GetAttr):
     def _extract(self, collection: str, pipeline: list):
         if self.read_cache:
             return self._read(f"{self.stem}_raw")
-        client = self.connect()
-        database = client[self.database]
-        db_collection = database[collection]
-        df = pd.DataFrame(
-            list(db_collection.aggregate(pipeline)), copy=False, dtype="string"
-        )
+        # Create a query object for MongoDB
+        query = {"collection": collection, "pipeline": pipeline}
+        df = self.db_connector.extract_data(query)
         # Substitui strings vazias, espaços e listas vazias por nulo
         df = df.replace(r"^\s*$|^\[\]$", pd.NA, regex=True)
         # Create the Log Column

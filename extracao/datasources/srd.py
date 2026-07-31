@@ -64,14 +64,14 @@ class SRD(Mosaico):
     def cols_mapping(self):
         return DICT_SRD
 
-    def extraction(self) -> pd.DataFrame:
+    def extract_raw_data(self) -> pd.DataFrame:
         """Extracts the data from the MongoDB database and returns a DataFrame"""
         pipeline = [{"$match": self.query}, {"$project": self.projection}]
         if self.limit > 0:
             pipeline.append({"$limit": self.limit})
         return self._extract(self.collection, pipeline)
 
-    def _format(
+    def format_data(
         self,
         df: pd.DataFrame,  # DataFrame com o resultantes do banco de dados
     ) -> pd.DataFrame:  # DataFrame formatado

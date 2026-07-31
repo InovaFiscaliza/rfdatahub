@@ -18,8 +18,8 @@ from extracao.constants import (
     SQL_STEL,
 )
 
-from .base import Base
-from .connectors import SQLServer
+from .base_refactored import Base, DatabaseConnector
+from .connectors_refactored import SQLServer
 
 # %% ../../nbs/01c_sitarweb.ipynb 4
 getcontext().prec = 5
@@ -48,11 +48,14 @@ if sys.platform in ("linux", "darwin", "cygwin"):
 
 
 class Sitarweb(Base, GetAttr):
-    """Common logic from the SITARWEB SQÇ Server Database"""
+    """Common logic from the SITARWEB SQL Server Database"""
 
     def __init__(self, sql_params: dict = SQLSERVER_PARAMS, read_cache: bool = False):
         self.read_cache = read_cache
-        self.default = SQLServer(sql_params)
+        db_connector = SQLServer(sql_params)
+        super().__init__(folder=Path(__file__).parent / "arquivos" / "saida", 
+                         read_cache=read_cache, 
+                         db_connector=db_connector)
 
     @property
     def columns(self):
@@ -62,12 +65,12 @@ class Sitarweb(Base, GetAttr):
     def query(self):
         raise NotImplementedError("Subclasses devem implementar a propriedade 'query'")
 
-    def extraction(self):
-        """This method returns a DataFrame with the results of the query"""
+    def extract_raw_data(self):
+        """Extract raw data from the database"""
         if self.read_cache:
             df = self._read(f"{self.stem}_raw", "numpy_nullable")
         else:
-            df = pd.read_sql_query(self.query, self.connect(), dtype="string")
+            df = self.db_connector.extract_data(self.query)
         df["Log"] = "[]"
         return df
 
@@ -87,7 +90,7 @@ class Radcom(Sitarweb):
     def stem(self):
         return "radcom"
 
-    def _format(
+    def format_data(
         self,
         df: pd.DataFrame,  # DataFrame com o resultantes do banco de dados
     ) -> pd.DataFrame:  # DataFrame formatado
@@ -120,7 +123,7 @@ class Radcom(Sitarweb):
         if not discarded.empty:
             processing = "Coluna Frequência com valores nulos"
             Base.register_log(discarded, processing)
-            self.append2discarded(discarded)
+            # self.append2discarded(discarded)  # TODO: Implement discarded data handling
         df.dropna(subset=["Frequência"], inplace=True)
         return df.loc[:, self.columns]
 
@@ -138,7 +141,7 @@ class Stel(Sitarweb):
     def stem(self):
         return "stel"
 
-    def _format(
+    def format_data(
         self,
         df: pd.DataFrame,  # DataFrame com o resultantes do banco de dados
     ) -> pd.DataFrame:  # DataFrame formatado
