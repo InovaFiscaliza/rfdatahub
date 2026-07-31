@@ -180,6 +180,144 @@ class Base:
         df["Classe_Emissão"] = df["Classe_Emissão"].astype("string", copy=False)
         return df.drop(["Designação_Emissão", "Temp"], axis=1)
 
+    @staticmethod
+    def convert_frequency(df: pd.DataFrame, frequency_col: str = "Frequência", unit_col: str = "Unidade") -> pd.DataFrame:
+        """Convert frequency values based on their units (kHz, MHz, GHz, etc.) to MHz"""
+        df = df.copy()
+        # Convert to numeric first
+        df[frequency_col] = pd.to_numeric(df[frequency_col], errors="coerce")
+        
+        # Handle different units if unit column exists
+        if unit_col in df.columns:
+            # Convert kHz to MHz
+            df.loc[df[unit_col] == "kHz", frequency_col] = df.loc[
+                df[unit_col] == "kHz", frequency_col
+            ].apply(lambda x: float(Decimal(x) / Decimal(1000)) if pd.notna(x) else x)
+            
+            # Convert GHz to MHz
+            df.loc[df[unit_col] == "GHz", frequency_col] = df.loc[
+                df[unit_col] == "GHz", frequency_col
+            ].apply(lambda x: float(Decimal(x) * Decimal(1000)) if pd.notna(x) else x)
+            
+            # Remove unit column as it's no longer needed
+            df.drop(unit_col, axis=1, inplace=True, errors='ignore')
+        
+        return df
+
+    @staticmethod
+    def handle_null_frequencies(df: pd.DataFrame, frequency_col: str = "Frequência", log_message: str = "Coluna Frequência com valores nulos") -> pd.DataFrame:
+        """Remove rows with null frequencies and log them"""
+        df = df.copy()
+        discarded = df[df[frequency_col].isna()]
+        if not discarded.empty:
+            processing = log_message
+            Base.register_log(discarded, processing)
+            # TODO: Implement discarded data handling if needed
+        df.dropna(subset=[frequency_col], inplace=True)
+        return df
+
+    @staticmethod
+    def set_data_source(df: pd.DataFrame, source: str, source_col: str = "Fonte") -> pd.DataFrame:
+        """Set the data source identifier"""
+        df = df.copy()
+        df[source_col] = source
+        df[source_col] = df[source_col].astype("string", copy=False)
+        return df
+
+    @staticmethod
+    def set_multiplicity(df: pd.DataFrame, multiplicity: str = "1", multiplicity_col: str = "Multiplicidade") -> pd.DataFrame:
+        """Set the multiplicity value"""
+        df = df.copy()
+        df[multiplicity_col] = multiplicity
+        df[multiplicity_col] = df[multiplicity_col].astype("string", copy=False)
+        return df
+
+    @staticmethod
+    def format_date_column(df: pd.DataFrame, date_col: str = "Validade_RF") -> pd.DataFrame:
+        """Format date column to YYYY-MM-DD format"""
+        df = df.copy()
+        if date_col in df.columns:
+            df[date_col] = df[date_col].astype("string", copy=False).str.slice(0, 10)
+        return df
+
+    @staticmethod
+    def parse_emission_designation(df: pd.DataFrame, service_col: str = "Serviço", bw_map: dict = None) -> pd.DataFrame:
+        """Parse emission designation based on service mapping"""
+        df = df.copy()
+        if bw_map and service_col in df.columns:
+            df["Designação_Emissão"] = df[service_col].fillna("").map(bw_map)
+            df = Base.split_designacao(df)
+        return df
+
+    @staticmethod
+    def convert_frequency(df: pd.DataFrame, frequency_col: str = "Frequência", unit_col: str = "Unidade") -> pd.DataFrame:
+        """Convert frequency values based on their units (kHz, MHz, GHz, etc.) to MHz"""
+        df = df.copy()
+        # Convert to numeric first
+        df[frequency_col] = pd.to_numeric(df[frequency_col], errors="coerce")
+        
+        # Handle different units if unit column exists
+        if unit_col in df.columns:
+            # Convert kHz to MHz
+            df.loc[df[unit_col] == "kHz", frequency_col] = df.loc[
+                df[unit_col] == "kHz", frequency_col
+            ].apply(lambda x: float(Decimal(x) / Decimal(1000)) if pd.notna(x) else x)
+            
+            # Convert GHz to MHz
+            df.loc[df[unit_col] == "GHz", frequency_col] = df.loc[
+                df[unit_col] == "GHz", frequency_col
+            ].apply(lambda x: float(Decimal(x) * Decimal(1000)) if pd.notna(x) else x)
+            
+            # Remove unit column as it's no longer needed
+            df.drop(unit_col, axis=1, inplace=True, errors='ignore')
+        
+        return df
+
+    @staticmethod
+    def handle_null_frequencies(df: pd.DataFrame, frequency_col: str = "Frequência", log_message: str = "Coluna Frequência com valores nulos") -> pd.DataFrame:
+        """Remove rows with null frequencies and log them"""
+        df = df.copy()
+        discarded = df[df[frequency_col].isna()]
+        if not discarded.empty:
+            processing = log_message
+            Base.register_log(discarded, processing)
+            # TODO: Implement discarded data handling if needed
+        df.dropna(subset=[frequency_col], inplace=True)
+        return df
+
+    @staticmethod
+    def set_data_source(df: pd.DataFrame, source: str, source_col: str = "Fonte") -> pd.DataFrame:
+        """Set the data source identifier"""
+        df = df.copy()
+        df[source_col] = source
+        df[source_col] = df[source_col].astype("string", copy=False)
+        return df
+
+    @staticmethod
+    def set_multiplicity(df: pd.DataFrame, multiplicity: str = "1", multiplicity_col: str = "Multiplicidade") -> pd.DataFrame:
+        """Set the multiplicity value"""
+        df = df.copy()
+        df[multiplicity_col] = multiplicity
+        df[multiplicity_col] = df[multiplicity_col].astype("string", copy=False)
+        return df
+
+    @staticmethod
+    def format_date_column(df: pd.DataFrame, date_col: str = "Validade_RF") -> pd.DataFrame:
+        """Format date column to YYYY-MM-DD format"""
+        df = df.copy()
+        if date_col in df.columns:
+            df[date_col] = df[date_col].astype("string", copy=False).str.slice(0, 10)
+        return df
+
+    @staticmethod
+    def parse_emission_designation(df: pd.DataFrame, service_col: str = "Serviço", bw_map: dict = None) -> pd.DataFrame:
+        """Parse emission designation based on service mapping"""
+        df = df.copy()
+        if bw_map and service_col in df.columns:
+            df["Designação_Emissão"] = df[service_col].fillna("").map(bw_map)
+            df = Base.split_designacao(df)
+        return df
+
     @property
     def stem(self) -> str:
         """The stem name for files related to this data source"""

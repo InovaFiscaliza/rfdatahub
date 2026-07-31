@@ -88,12 +88,9 @@ class SRD(Mosaico):
 
         df[status].reset_index(drop=True, inplace=True)
 
-        # Discard null frequencies
-        discarded = df[df.Frequência.isna()].copy()
-        processing = "Valor Nulo."
-        Mosaico.register_log(discarded, processing, "Frequência")
+        # Use utility methods from base class
+        df = Base.handle_null_frequencies(df, "Frequência", "Valor Nulo.")
 
-        df.dropna(subset="Frequência", ignore_index=True, inplace=True)  # type: ignore
         df["Frequência"] = (
             df.Frequência.astype("string", copy=False)
             .str.replace(",", ".")
@@ -103,16 +100,18 @@ class SRD(Mosaico):
         df.loc[df["Serviço"] == "205", "Frequência"] = df.loc[
             df["Serviço"] == "205", "Frequência"
         ].apply(lambda x: float(Decimal(x) / Decimal(1000)))
-        df["Validade_RF"] = df.Validade_RF.astype("string", copy=False).str.slice(0, 10)
-
-        df["Fonte"] = "MOSAICO-SRD"
-        df["Fonte"] = df["Fonte"].astype("string", copy=False)
+        
+        # Use utility methods from base class
+        df = Base.format_date_column(df, "Validade_RF")
+        
+        # Use utility methods from base class
+        df = Base.set_data_source(df, "MOSAICO-SRD")
 
         df["Designação_Emissão"] = df.Serviço.fillna("").map(BW_MAP)
-        df = Mosaico.split_designacao(df)
+        df = Base.split_designacao(df)
 
-        df["Multiplicidade"] = "1"
-        df["Multiplicidade"] = df["Multiplicidade"].astype("string", copy=False)
+        # Use utility methods from base class
+        df = Base.set_multiplicity(df, "1")
 
         df["Padrão_Antena(dBd)"] = df["Padrão_Antena(dBd)"].str.replace("None", "0")
         df["Potência_Transmissor(W)"] = pd.to_numeric(

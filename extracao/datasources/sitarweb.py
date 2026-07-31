@@ -101,8 +101,11 @@ class Radcom(Sitarweb):
         df["Largura_Emissão(kHz)"] = "256"
         df["Validade_RF"] = pd.NA
         df["Status"] = "RADCOM"
-        df["Fonte"] = "SRD"
-        df["Multiplicidade"] = "1"
+        
+        # Use utility methods from base class
+        df = Base.set_data_source(df, "SRD")
+        df = Base.set_multiplicity(df, "1")
+        
         df["Fase"] = df["Fase"].astype("string", copy=False)
         df["Situação"] = df["Situação"].astype("string", copy=False)
 
@@ -116,15 +119,9 @@ class Radcom(Sitarweb):
         # Base.register_log(df, processing, row_filter=~a)
         df.drop(["Fase", "Situação"], axis=1, inplace=True)
 
-        df["Frequência"] = pd.to_numeric(df["Frequência"], errors="coerce").astype(
-            "float"
-        )
-        discarded = df[df.Frequência.isna()]
-        if not discarded.empty:
-            processing = "Coluna Frequência com valores nulos"
-            Base.register_log(discarded, processing)
-            # self.append2discarded(discarded)  # TODO: Implement discarded data handling
-        df.dropna(subset=["Frequência"], inplace=True)
+        # Use utility methods from base class
+        df = Base.handle_null_frequencies(df)
+        
         return df.loc[:, self.columns]
 
 
@@ -148,24 +145,22 @@ class Stel(Sitarweb):
         """Formata, limpa e padroniza os dados provenientes da query no banco"""
         df["Status"] = "L"
         df["Entidade"] = df.Entidade.astype("string", copy=False).str.strip()
-        df["Fonte"] = "STEL"
+        
+        # Use utility methods from base class
+        df = Base.set_data_source(df, "STEL")
         df["Largura_Emissão"] = df["Largura_Emissão"].astype("string", copy=False)
         df.loc[:, ["Largura_Emissão(kHz)", "_"]] = (
             df.Largura_Emissão.fillna("").apply(self.parse_bw).tolist()
         )
         df.drop(["Largura_Emissão", "_"], axis=1, inplace=True)
-        df.loc[:, "Validade_RF"] = df.Validade_RF.astype(
-            "string", copy=False
-        ).str.slice(0, 10)
-        df["Frequência"] = pd.to_numeric(df["Frequência"], errors="coerce").astype(
-            "float"
-        )
-        df.loc[df.Unidade == "kHz", "Frequência"] = df.loc[
-            df.Unidade == "kHz", "Frequência"
-        ].apply(lambda x: float(Decimal(x) / Decimal(1000)))
-        df.loc[df.Unidade == "GHz", "Frequência"] = df.loc[
-            df.Unidade == "GHz", "Frequência"
-        ].apply(lambda x: float(Decimal(x) * Decimal(1000)))
-        df.drop("Unidade", axis=1, inplace=True)
-        df["Multiplicidade"] = "1"
+        
+        # Use utility methods from base class
+        df = Base.format_date_column(df, "Validade_RF")
+        
+        # Use utility methods from base class
+        df = Base.convert_frequency(df)
+        
+        # Use utility methods from base class
+        df = Base.set_multiplicity(df, "1")
+        
         return df.loc[:, self.columns]
