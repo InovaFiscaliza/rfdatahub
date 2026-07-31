@@ -6,11 +6,13 @@ __all__ = ["DBConnector", "SQLServer", "MongoDB"]
 # %% ../../nbs/01a_connectors.ipynb 3
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from typing import Union, Dict, Any
+import pandas as pd
 
 import pyodbc
 from pymongo import MongoClient
 
-# from motor.motor_asyncio import AsyncIOMotorClient
+from .base_refactored import DatabaseConnector
 
 
 # %% ../../nbs/01a_connectors.ipynb 5

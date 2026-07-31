@@ -41,9 +41,41 @@ class DatabaseConnector(ABC):
         pass
 
 
+# %% Abstract DataSource interface
+class DataSource(ABC):
+    """Abstract base class defining the common interface for all data sources"""
+    
+    @property
+    @abstractmethod
+    def stem(self) -> str:
+        """The stem name for files related to this data source"""
+        pass
+    
+    @property
+    @abstractmethod
+    def columns(self) -> List[str]:
+        """The list of column names for this data source"""
+        pass
+    
+    @abstractmethod
+    def extract_raw_data(self) -> pd.DataFrame:
+        """Extract raw data from the data source"""
+        pass
+    
+    @abstractmethod
+    def format_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Format the raw data into the final structure"""
+        pass
+    
+    @abstractmethod
+    def process_data(self) -> pd.DataFrame:
+        """Process the raw data through extraction and formatting"""
+        pass
+
+
 # %% ../../nbs/01b_base.ipynb 6
 @dataclass
-class Base:
+class Base(DataSource):
     """Base class for data extraction with a deeper interface"""
     
     folder: Union[str, Path] = Path(__file__).parent / "arquivos" / "saida"
@@ -319,33 +351,10 @@ class Base:
         return df
 
     @property
-    def stem(self) -> str:
-        """The stem name for files related to this data source"""
-        raise NotImplementedError("Subclasses devem setar a propriedade stem")
-
-    def extract_raw_data(self) -> pd.DataFrame:
-        """Extract raw data from the database"""
-        raise NotImplementedError("Subclasses devem implementar o método extract_raw_data")
-
-    def format_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Format the raw data into the final structure"""
-        raise NotImplementedError("Subclasses devem implementar o método format_data")
-
-    def process_data(self) -> pd.DataFrame:
-        """Process the raw data through extraction and formatting"""
-        # Extract raw data
-        raw_df = self.extract_raw_data()
-        
-        # Save raw data if not reading from cache
-        if not self.read_cache:
-            self._save(raw_df.drop("Log", axis=1, errors='ignore'), self.folder, f"{self.stem}_raw")
-        
-        # Format the data
-        formatted_df = self.format_data(raw_df)
-        
-        return formatted_df
-
-    def update(self):
+    def columns(self):
+        raise NotImplementedError(
+            "Subclasses devem implementar a propriedade 'columns'"
+        )
         """Update the cached dataframe with newly processed data"""
         self.df = self.process_data()
 
