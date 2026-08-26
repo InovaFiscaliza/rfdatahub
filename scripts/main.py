@@ -73,18 +73,18 @@ def get_db(
 			)
 
 	# Create a release with the version tag and generate release notes
-	subprocess.run(
-		[
-			'gh',
-			'release',
-			'create',
-			new_version,
-			'--generate-notes',
-			'.\\extracao\\datasources\\arquivos\\saida\\estacoes.parquet',
-			'.\\extracao\\datasources\\arquivos\\saida\\log.parquet',
-		],
-		check=False,
-	)
+	# subprocess.run(
+	# 	[
+	# 		'gh',
+	# 		'release',
+	# 		'create',
+	# 		new_version,
+	# 		'--generate-notes',
+	# 		'.\\extracao\\datasources\\arquivos\\saida\\estacoes.parquet',
+	# 		'.\\extracao\\datasources\\arquivos\\saida\\log.parquet',
+	# 	],
+	# 	check=False,
+	# )
 
 	# Delete the 'rfdatahub' release and cleanup the tag
 	subprocess.run(
