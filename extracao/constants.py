@@ -333,12 +333,29 @@ DICT_LICENCIAMENTO = {
     # 'PerdasAcessorias': 'Perdas_Acessorias',
 }
 
-PROJECTION_LICENCIAMENTO = {k: 1.0 for k in DICT_LICENCIAMENTO}
-
+PROJECTION_LICENCIAMENTO = {
+  "NumAto": 1.0,
+  "NumFistel": 1.0,
+  "NumServico": 1.0,
+  "NomeEntidade": 1.0,
+  "SiglaUf": 1.0,
+  "NumEstacao": 1.0,
+  "CodTipoClasseEstacao": 1.0,
+  "NomeMunicipio": 1.0,
+  "CodMunicipio": 1.0,
+  "DataValidade": 1.0,
+  "FreqTxMHz": 1.0,
+  "formId": 1.0,
+  "Tecnologia": 1.0,
+  "Latitude": 1.0,
+  "Longitude": 1.0,
+  "DesignacaoEmissao": 1.0
+}
 # %% ../nbs/00_constants.ipynb 9
 MONGO_TELECOM = {
     "$and": [
-        {"DataExclusao": None},
+        {"DataExclusao": {"$in": [None, ""]}},
+        {"DataMotivoExclusao": {"$in": [None, ""]}},
         {"DataValidade": {"$nin": ["", None]}},
         {"Status.state": "LIC-LIC-01"},
         {"NumServico": {"$nin": ["010", "045", "171", "450", "750", "", None]}},
@@ -361,7 +378,8 @@ MONGO_SRD = {
 
 MONGO_SMP = {
     "$and": [
-        {"DataExclusao": None},
+        {"DataExclusao": {"$in": [None, ""]}},
+        {"DataMotivoExclusao": {"$in": [None, ""]}},
         {"DataValidade": {"$nin": ["", None]}},
         {"Status.state": "LIC-LIC-01"},
         {"NumServico": "010"},
