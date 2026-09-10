@@ -32,7 +32,7 @@ class Base:
     read_cache: bool = False
 
     def _read(self, stem: str, backend: str = "pyarrow") -> pd.DataFrame:
-        """Lê o dataframe formado por self.folder / self.stem.parquet.gzip"""
+        """Lê o dataframe formado por self.folder / self.stem.parquet"""
         file = Path(f"{self.folder}/{stem}.parquet")
         try:
             return pd.read_parquet(file, dtype_backend=backend).astype(
@@ -49,7 +49,7 @@ class Base:
         folder.mkdir(parents=True, exist_ok=True)
         try:
             file = Path(f"{folder}/{stem}.parquet")
-            df.astype("category").to_parquet(file, index=False, engine="pyarrow")
+            df.astype("category", copy=False).to_parquet(file, index=False, engine="pyarrow")
         except (ArrowInvalid, ArrowTypeError) as e:
             raise Exception("Não foi possível salvar o arquivo parquet") from e
         return df

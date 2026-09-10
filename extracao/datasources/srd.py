@@ -71,12 +71,35 @@ class SRD(Mosaico):
             pipeline.append({"$limit": self.limit})
         return self._extract(self.collection, pipeline)
 
+    def _extract(self, collection: str, pipeline: list):
+        if self.read_cache:
+            return self._read(f"{self.stem}_raw")
+        client = self.connect()
+        database = client[self.database]
+        db_collection = database[collection]
+        df = pd.DataFrame(
+            list(db_collection.aggregate(pipeline)), copy=False,
+        )
+        for row in df.itertuples():
+            if isinstance(row.loctx, (list, tuple)) and len(row.loctx) == 2:
+                df.loc[row.Index, ["LongTX", "LatTX"]] = str(row.loctx[0]), str(row.loctx[1])
+            if isinstance(row.locpb, (list, tuple)) and len(row.locpb) == 2:
+                df.loc[row.Index, ["LongPB", "LatPB"]] = str(row.locpb[0]), str(row.locpb[1])
+        c = df.LatPB.isna() & df.LatTX.notna()
+        df.loc[c, ["LongPB", "LatPB"]] = df.loc[c, ["LongTX", "LatTX"]] 
+        
+        # Substitui strings vazias, espaços e listas vazias por nulo
+        df = df.astype("string", copy=False).replace(r"^\s*$|^\[\]$", pd.NA, regex=True)
+        # Create the Log Column
+        df["Log"] = "[]"
+        return df
+    
+
     def _format(
         self,
         df: pd.DataFrame,  # DataFrame com o resultantes do banco de dados
     ) -> pd.DataFrame:  # DataFrame formatado
         """Formats, cleans and standardizes the queried data from the database"""
-
         df = df.rename(columns=self.cols_mapping)
         status = df.Status.str.contains("-C1$|-C2$|-C3$|-C4$|-C7|-C98$", na=False)
 

@@ -54,7 +54,7 @@ class Mosaico(Base, GetAttr):
         database = client[self.database]
         db_collection = database[collection]
         df = pd.DataFrame(
-            list(db_collection.aggregate(pipeline)), copy=False, dtype="string"
+            list(db_collection.aggregate(pipeline)), copy=False, dtype='string'
         )
         # Substitui strings vazias, espaços e listas vazias por nulo
         df = df.replace(r"^\s*$|^\[\]$", pd.NA, regex=True)
