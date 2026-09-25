@@ -330,10 +330,8 @@ class Geography:
         If it doesn't the original coordinates are replaced by the ones representing the centroid of the original city code
         """
         # TODO: keep track of "unchanged divergent coordinates, i.e. with IBGE coords null"
-        wrong_city_coords = self.df["Código_Município"].notna()
-        wrong_city_coords &= self.df["Código_Município"] != self.df["CD_MUN"].fillna(
-            "-1"
-        )
+        wrong_city_coords = self.df["Código_Município"].notna() & self.df["CD_MUN"].notna()
+        wrong_city_coords &= self.df["Código_Município"] != self.df["CD_MUN"]
         wrong_city_coords &= self.log["city_normalized"]
         self.log.update({"wrong_city_coords": wrong_city_coords})
         originals = ["Latitude", "Longitude"]
