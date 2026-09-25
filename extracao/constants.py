@@ -53,14 +53,14 @@ from pathlib import Path
 TIMEOUT = 5
 RELATORIO_SRD = "http://sistemas.anatel.gov.br/se/eApp/reports/b/srd/resumo_sistema.php?id={}&state={}"
 ESTACAO = "http://sistemas.anatel.gov.br/se/public/view/b/srd.php?wfid=estacoes&id={}"
-MALHA_IBGE = "https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/municipio_2022/Brasil/BR/BR_Municipios_2022.zip"
+MALHA_IBGE = "https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/municipio_2025/Brasil/BR/BR_Municipios_2025.zip"
 FILES = Path(__file__).parent / "datasources" / "arquivos"
 PATH_NAV = FILES / "VHF_NAV.csv"
 PATH_COM = FILES / "VHF_COM.csv"
 VOR_ILS_DME = FILES / "VOR_ILS_DME_Channel.csv"
 CHANNELS = FILES / "canalizacao_smp.csv"
 IBGE_MUNICIPIOS = FILES / "municipios.csv"
-IBGE_POLIGONO = FILES / "BR_Municipios_2022" / "BR_Municipios_2022.shp"
+IBGE_POLIGONO = FILES / "BR_Municipios_2025" / "BR_Municipios_2025.shp"
 
 # %% ../nbs/00_constants.ipynb 6
 COLUNAS = [
