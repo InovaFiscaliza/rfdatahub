@@ -39,3 +39,8 @@ recursive = false
 jupyter_hooks = true
 custom_sidebar = true
 title = 'Telecomunicações e Radiodifusão'
+
+[dependency-groups]
+dev = [
+    "marimo>=0.8.22",
+]
