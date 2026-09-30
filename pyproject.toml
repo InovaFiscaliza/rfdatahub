@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "extracao"
+version = "0.1.0"
 dynamic = ["version"]
 description = "This repository hold automation scripts to fetch, clean and merge data from licensed telecomunications entities available at ANATEL Database Systems."
 readme = "README.md"
