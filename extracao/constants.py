@@ -4,8 +4,10 @@
 
 # %% auto #0
 __all__ = ['TIMEOUT', 'RELATORIO_SRD', 'ESTACAO', 'MALHA_IBGE', 'FILES', 'PATH_NAV', 'PATH_COM', 'VOR_ILS_DME', 'CHANNELS',
-           'IBGE_MUNICIPIOS', 'IBGE_POLIGONO', 'MONGO_TELECOM', 'MONGO_SRD', 'MONGO_SMP', 'SQL_RADCOM', 'SQL_STEL',
-           'SQL_VALIDA_COORD', 'REGEX_ESTADOS', 'RE_BW', 'MIN_LAT', 'MAX_LAT', 'MIN_LONG', 'MAX_LONG']
+           'IBGE_MUNICIPIOS', 'IBGE_POLIGONO', 'COLUNAS', 'COLS_SRD', 'FLOAT_COLUMNS', 'INT_COLUMNS', 'STR_COLUMNS',
+           'CAT_COLUMNS', 'AGG_LICENCIAMENTO', 'AGG_SMP', 'APP_ANALISE_PT', 'APP_ANALISE_EN', 'ESTADOS',
+           'MONGO_TELECOM', 'MONGO_SRD', 'MONGO_SMP', 'SQL_RADCOM', 'SQL_STEL', 'SQL_VALIDA_COORD', 'REGEX_ESTADOS',
+           'RE_BW', 'MIN_LAT', 'MAX_LAT', 'MIN_LONG', 'MAX_LONG']
 
 # %% ../nbs/00_constants.ipynb #2301aae9
 import re
@@ -24,6 +26,145 @@ CHANNELS = FILES / "canalizacao_smp.csv"
 IBGE_MUNICIPIOS = FILES / "municipios.csv"
 IBGE_POLIGONO = FILES / "BR_Municipios_2025" / "BR_Municipios_2025.shp"
 
+
+# %% ../nbs/00_constants.ipynb #2cc85745
+COLUNAS = [
+    "Entidade",
+    "Fistel",
+    "Serviço",
+    "Estação",
+    "Latitude",
+    "Longitude",
+    "Código_Município",
+    "Município",
+    "UF",
+    "Classe",
+    "Classe_Emissão",
+    "Largura_Emissão(kHz)",
+    "Validade_RF",
+    "Status",
+    "Fonte",
+    "Multiplicidade",
+    "Log",
+]
+
+COLS_SRD = COLUNAS + [
+    "Cota_Base_Torre(m)",
+    "Potência_Transmissor(W)",
+    "Ganho_Antena(dBd)",
+    "Ângulo_Elevação_Antena",
+    "Azimute_Antena",
+    "Altura_Antena(m)",
+    "Atenuação_Linha(db/100m)",
+    "Perdas_Acessórias_Linha(db)",
+    "Padrão_Antena(dBd)",
+    "Comprimento_Linha(m)",
+    "Relatório_Canal",
+]
+
+FLOAT_COLUMNS = [
+    "Latitude",
+    "Longitude",
+    "Largura_Emissão(kHz)",
+    "Cota_Base_Torre(m)",
+    "Potência_Transmissor(W)",
+    "Ganho_Antena(dBd)",
+    "Ângulo_Elevação_Antena",
+    "Azimute_Antena",
+    "Altura_Antena(m)",
+    "Atenuação_Linha(db/100m)",
+    "Perdas_Acessórias_Linha(db)",
+    "Comprimento_Linha(m)",
+]
+
+INT_COLUMNS = ["Fistel", "Serviço", "Multiplicidade"]
+
+
+STR_COLUMNS = ["Entidade", "Estação", "Log", "Padrão_Antena(dBd)", "Relatório_Canal"]
+
+CAT_COLUMNS = [
+    "Código_Município",
+    "Município",
+    "UF",
+    "Classe",
+    "Classe_Emissão",
+    "Validade_RF",
+    "Status",
+    "Fonte",
+]
+
+AGG_LICENCIAMENTO = [
+    "Frequência",
+    "Fistel",
+    "Código_Município",
+    "Longitude",
+    "Latitude",
+    "Classe",
+    "Serviço",
+    "Classe_Emissão",
+    "Largura_Emissão(kHz)",
+]
+
+AGG_SMP = [
+    "Código_Município",
+    "Fistel",
+    "Frequência",
+    "Largura_Emissão(kHz)",
+    "Classe_Emissão",
+    "Tecnologia",
+]
+
+APP_ANALISE_PT = (
+    "Frequência",
+    "Latitude",
+    "Longitude",
+    "Descrição",
+    "Serviço",
+    "Estação",
+    "Classe_Emissão",
+    "Largura_Emissão(kHz)",
+)
+
+APP_ANALISE_EN = (
+    "Frequency",
+    "Latitude",
+    "Longitude",
+    "Description",
+    "Service",
+    "Station",
+    "Class",
+    "BW",
+)
+
+ESTADOS = (
+    "AC",
+    "AL",
+    "AP",
+    "AM",
+    "BA",
+    "CE",
+    "ES",
+    "GO",
+    "MA",
+    "MT",
+    "MS",
+    "MG",
+    "PA",
+    "PB",
+    "PR",
+    "PE",
+    "PI",
+    "RJ",
+    "RN",
+    "RS",
+    "RO",
+    "RR",
+    "SC",
+    "SP",
+    "SE",
+    "TO",
+    "DF",
+)
 
 # %% ../nbs/00_constants.ipynb #2cc85745
 MONGO_TELECOM = {
