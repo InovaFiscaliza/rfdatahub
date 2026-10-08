@@ -4,7 +4,7 @@
 
 # %% auto #0
 __all__ = ['TIMEOUT', 'RELATORIO_SRD', 'ESTACAO', 'MALHA_IBGE', 'FILES', 'PATH_NAV', 'PATH_COM', 'VOR_ILS_DME', 'CHANNELS',
-           'IBGE_MUNICIPIOS', 'IBGE_POLIGONO', 'MONGO_TELECOM', 'MONGO_SRD', 'MONGO_SMP', 'SQL_STEL',
+           'IBGE_MUNICIPIOS', 'IBGE_POLIGONO', 'MONGO_TELECOM', 'MONGO_SRD', 'MONGO_SMP', 'SQL_RADCOM', 'SQL_STEL',
            'SQL_VALIDA_COORD', 'REGEX_ESTADOS', 'RE_BW', 'MIN_LAT', 'MAX_LAT', 'MIN_LONG', 'MAX_LONG']
 
 # %% ../nbs/00_constants.ipynb #2301aae9
@@ -65,6 +65,40 @@ MONGO_SMP = {
         {"Tecnologia": {"$nin": [None, ""]}},
     ]
 }
+
+# %% ../nbs/00_constants.ipynb #3ef620a2
+SQL_RADCOM = """
+select 
+  distinct F.MedFrequenciaInicial as 'Frequência', 
+  SRD.IndFase as 'Fase', 
+  ID.SiglaSituacao as 'Situação', 
+  Ent.NomeEntidade as 'Entidade', 
+  H.NumFistel as 'Fistel', 
+  E.NumEstacao as 'Estação', 
+  M.NomeMunicipio as 'Município', 
+  M.CodMunicipio as Código_Município,
+  PB.SiglaUF as 'UF', 
+  SRD.MedLatitudeDecimal as 'Latitude', 
+  SRD.MedLongitudeDecimal as 'Longitude' 
+from 
+  SRD_PEDIDORADCOM SRD 
+  left join ESTACAO E on E.IdtHabilitacao = SRD.IdtHabilitacao 
+  inner join FREQUENCIA F on F.IdtEstacao = E.IdtEstacao 
+  left join HABILITACAO H on H.IdtEntidade = SRD.IdtEntidade 
+  left join ENTIDADE Ent on Ent.IdtEntidade = SRD.IdtEntidade 
+  left join SRD_PLANOBASICO PB on PB.IdtPlanoBasico = SRD.IdtPlanoBasico 
+  left join Municipio M on M.CodMunicipio = PB.CodMunicipio 
+  left join SRD_INDICESESTACAO ID on ID.IdtHabilitacao = SRD.IdtHabilitacao 
+  left join CONTRATO C on C.IdtContrato = E.IdtContrato 
+where 
+  SRD.IdtPlanoBasico is not Null 
+  and SRD.IndFase is not Null 
+order by 
+  Frequência, 
+  UF, 
+  Município
+
+"""
 
 # %% ../nbs/00_constants.ipynb #03f4d8fb
 SQL_STEL = """
