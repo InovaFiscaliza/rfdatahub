@@ -69,7 +69,10 @@ MONGO_SMP = {
 # %% ../nbs/00_constants.ipynb #3ef620a2
 SQL_RADCOM = """
 select 
-  distinct F.MedFrequenciaInicial as 'Frequência', 
+  distinct F.MedFrequenciaInicial as 'Frequência',
+  a.IndPolariz as "Polarizaçao",
+  a.MedHCI  as "Altura_Antena",
+  e2.MedPotenciaOperacao   as 'Potencia_Transmissor',
   SRD.IndFase as 'Fase', 
   ID.SiglaSituacao as 'Situação', 
   Ent.NomeEntidade as 'Entidade', 
@@ -89,15 +92,13 @@ from
   left join SRD_PLANOBASICO PB on PB.IdtPlanoBasico = SRD.IdtPlanoBasico 
   left join Municipio M on M.CodMunicipio = PB.CodMunicipio 
   left join SRD_INDICESESTACAO ID on ID.IdtHabilitacao = SRD.IdtHabilitacao 
-  left join CONTRATO C on C.IdtContrato = E.IdtContrato 
+  left join CONTRATO C on C.IdtContrato = E.IdtContrato
+  left join EQUIPAMENTO e2 on e2.IdtEstacao = e.IdtEstacao
+  left join ANTENA_RD a on a.IdtEstacao = e.IdtEstacao 
 where 
   SRD.IdtPlanoBasico is not Null 
   and SRD.IndFase is not Null 
-order by 
-  Frequência, 
-  UF, 
-  Município
-
+order by Frequência, UF, Município
 """
 
 # %% ../nbs/00_constants.ipynb #03f4d8fb
