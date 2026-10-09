@@ -15,7 +15,7 @@ from dotenv import find_dotenv, load_dotenv
 
 from extracao.constants import (
     AGG_LICENCIAMENTO,
-    COLUNAS,
+    COLS_STEL,
     DICT_LICENCIAMENTO,
     MONGO_TELECOM,
     PROJECTION_LICENCIAMENTO,
@@ -33,8 +33,8 @@ MONGO_URI = os.environ.get("MONGO_URI")
 class Telecom(Mosaico):
     """Extração e Processamento dos serviços de Telecomunições distintos de SMP"""
 
-    def __init__(self, mongo_uri: str = MONGO_URI, limit: int = 0) -> None:
-        super().__init__(mongo_uri)
+    def __init__(self, mongo_uri: str = MONGO_URI, limit: int = 0, read_cache: bool = False) -> None:
+        super().__init__(mongo_uri, read_cache=read_cache)
         self.limit = limit
 
     @property
@@ -55,7 +55,7 @@ class Telecom(Mosaico):
 
     @property
     def columns(self):
-        return COLUNAS
+        return COLS_STEL
 
     @property
     def cols_mapping(self):

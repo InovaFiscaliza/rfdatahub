@@ -253,6 +253,16 @@ def merge_on_frequency(
 
 
 # %% ../nbs/00b_format.ipynb #2ccd9eb6
+def _left_filter(df, df_close_merge, merge_cols):
+    df = pd.merge(
+        df, df_close_merge, how="left", on=merge_cols, indicator=True, copy=False
+    )
+    df = df.loc[df["_merge"] == "left_only"]
+    return df.drop(["_merge", "Distance_y"], axis=1).rename(
+        columns={"Distance_x": "Distance"}
+    )
+
+
 def cast2float(column: pd.Series) -> pd.Series:
     return pd.to_numeric(
         column,

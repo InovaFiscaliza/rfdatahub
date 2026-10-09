@@ -17,7 +17,8 @@ from dotenv import find_dotenv, load_dotenv
 from fastcore.foundation import GetAttr
 
 from extracao.constants import (
-    COLUNAS,
+    COLS_STEL,
+    COLS_RADCOM,
     SQL_RADCOM,
     SQL_STEL,
 )
@@ -60,7 +61,7 @@ class Sitarweb(Base, GetAttr):
 
     @property
     def columns(self):
-        return COLUNAS
+        return COLS_STEL
 
     @property
     def query(self):
@@ -85,6 +86,11 @@ class Radcom(Sitarweb):
     @property
     def query(self):
         return SQL_RADCOM
+
+    @property
+    def columns(self):
+        return COLS_RADCOM
+
 
     @property
     def stem(self):

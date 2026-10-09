@@ -79,7 +79,7 @@ class Estacoes(Base):
                 SRD(self.mongo_uri, self.limit, self.read_cache),
                 Stel(self.sql_params, self.read_cache),
                 Radcom(self.sql_params, self.read_cache),
-                Aero(self.read_cache),
+                Aero(read_cache=self.read_cache),
             ]
         )
 

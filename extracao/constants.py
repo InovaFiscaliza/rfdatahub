@@ -4,8 +4,9 @@
 
 # %% auto #0
 __all__ = ['TIMEOUT', 'RELATORIO_SRD', 'ESTACAO', 'MALHA_IBGE', 'FILES', 'PATH_NAV', 'PATH_COM', 'VOR_ILS_DME', 'CHANNELS',
-           'IBGE_MUNICIPIOS', 'IBGE_POLIGONO', 'COLUNAS', 'COLS_SRD', 'FLOAT_COLUMNS', 'INT_COLUMNS', 'STR_COLUMNS',
-           'CAT_COLUMNS', 'AGG_LICENCIAMENTO', 'AGG_SMP', 'APP_ANALISE_PT', 'APP_ANALISE_EN', 'ESTADOS',
+           'IBGE_MUNICIPIOS', 'IBGE_POLIGONO', 'COLS_STEL', 'COLS_RADCOM', 'COLS_SRD', 'FLOAT_COLUMNS', 'INT_COLUMNS',
+           'STR_COLUMNS', 'CAT_COLUMNS', 'AGG_LICENCIAMENTO', 'AGG_SMP', 'APP_ANALISE_PT', 'APP_ANALISE_EN', 'ESTADOS',
+           'SIGLAS', 'BW', 'BW_MAP', 'DICT_SRD', 'PROJECTION_SRD', 'DICT_LICENCIAMENTO', 'PROJECTION_LICENCIAMENTO',
            'MONGO_TELECOM', 'MONGO_SRD', 'MONGO_SMP', 'SQL_RADCOM', 'SQL_STEL', 'SQL_VALIDA_COORD', 'REGEX_ESTADOS',
            'RE_BW', 'MIN_LAT', 'MAX_LAT', 'MIN_LONG', 'MAX_LONG']
 
@@ -17,8 +18,8 @@ from pathlib import Path
 TIMEOUT = 5
 RELATORIO_SRD = "http://sistemas.anatel.gov.br/se/eApp/reports/b/srd/resumo_sistema.php?id={}&state={}"
 ESTACAO = "http://sistemas.anatel.gov.br/se/public/view/b/srd.php?wfid=estacoes&id={}"
-MALHA_IBGE = "https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/municipio_2025/Brasil/BR/BR_Municipios_2025.zip"
-FILES = Path.cwd() / "datasources" / "arquivos"
+MALHA_IBGE = "https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/municipio_2025/Brasil/BR_Municipios_2025.zip"
+FILES = Path(__file__).parent / "datasources" /  "arquivos"
 PATH_NAV = FILES / "VHF_NAV.csv"
 PATH_COM = FILES / "VHF_COM.csv"
 VOR_ILS_DME = FILES / "VOR_ILS_DME_Channel.csv"
@@ -28,7 +29,8 @@ IBGE_POLIGONO = FILES / "BR_Municipios_2025" / "BR_Municipios_2025.shp"
 
 
 # %% ../nbs/00_constants.ipynb #2cc85745
-COLUNAS = [
+COLS_STEL = [
+    "Frequência",
     "Entidade",
     "Fistel",
     "Serviço",
@@ -48,13 +50,20 @@ COLUNAS = [
     "Log",
 ]
 
-COLS_SRD = COLUNAS + [
-    "Cota_Base_Torre(m)",
+COLS_RADCOM = COLS_STEL + [
     "Potência_Transmissor(W)",
+    "Polarização_Antena",
+    "Altura_Antena(m)",        
+]
+
+COLS_SRD = COLS_STEL + [
+    "Potência_Transmissor(W)",
+    "Polarização_Antena",
+    "Altura_Antena(m)",           
+    "Cota_Base_Torre(m)",
     "Ganho_Antena(dBd)",
     "Ângulo_Elevação_Antena",
     "Azimute_Antena",
-    "Altura_Antena(m)",
     "Atenuação_Linha(db/100m)",
     "Perdas_Acessórias_Linha(db)",
     "Padrão_Antena(dBd)",
@@ -166,6 +175,156 @@ ESTADOS = (
     "DF",
 )
 
+# %% ../nbs/00_constants.ipynb #8242c4f2
+SIGLAS = {
+    "Acre": "AC",
+    "Alagoas": "AL",
+    "Amapá": "AP",
+    "Amazonas": "AM",
+    "Bahia": "BA",
+    "Ceará": "CE",
+    "Espírito Santo": "ES",
+    "Goiás": "GO",
+    "Maranhão": "MA",
+    "Mato Grosso": "MT",
+    "Mato Grosso do Sul": "MS",
+    "Minas Gerais": "MG",
+    "Pará": "PA",
+    "Paraíba": "PB",
+    "Paraná": "PR",
+    "Pernambuco": "PE",
+    "Piauí": "PI",
+    "Rio de Janeiro": "RJ",
+    "Rio Grande do Norte": "RN",
+    "Rio Grande do Sul": "RS",
+    "Rondônia": "RO",
+    "Roraima": "RR",
+    "Santa Catarina": "SC",
+    "São Paulo": "SP",
+    "Sergipe": "SE",
+    "Tocantins": "TO",
+    "Distrito Federal": "DF",
+}
+
+BW = {"H": 0.001, "K": 1, "M": 1000, "G": 1000000}
+
+BW_MAP = {
+    "167": "6M00",
+    "205": "10K0",
+    "230": "256K",
+    "231": "256K",
+    "247": "5M70",
+    "248": "6M00",
+    "800": "6M00",
+    "801": "5M70",
+    "805": "256K",
+    "": "",
+}
+
+DICT_SRD = {
+    "_id": "Id",
+    "frequency": "Frequência",
+    "licensee": "Entidade",
+    "NumFistel": "Fistel",
+    "NumEstacao": "Estação",
+    "NomeMunicipio": "Município",
+    "CodMunicipio": "Código_Município",
+    "SiglaUF": "UF",
+    "LatPB": "Latitude",
+    "LongPB": "Longitude",
+    "stnClass": "Classe",
+    "NumServico": "Serviço",
+    "DataValFreq": "Validade_RF",
+    "state": "Status",
+    "MedCotaBaseTorre": "Cota_Base_Torre(m)",
+    "hpat": "Padrão_Antena(dBd)",
+    "MedPotenciaOperacao": "Potência_Transmissor(W)",
+    "IndPolariz": "Polarização_Antena",
+    "MedGMaxdBd": "Ganho_Antena(dBd)",
+    "MedBeamTilt": "Ângulo_Elevação_Antena",
+    "MedOrientNV": "Azimute_Antena",
+    "MedHCI": "Altura_Antena(m)",
+    "MedAtenLinhaTransmissaodB100m": "Atenuação_Linha(db/100m)",
+    "MedComprimento": "Comprimento_Linha(m)",
+    "PerdasAcessorias_db": "Perdas_Acessórias_Linha(db)",
+}
+
+PROJECTION_SRD = {
+    "_id": 1.0,
+    "frequency": 1.0,
+    "licensee": 1.0,
+    "NumFistel": 1.0,
+    "NumEstacao": "$estacao.NumEstacao",
+    "NomeMunicipio": "$srd_planobasico.NomeMunicipio",
+    "CodMunicipio": "$srd_planobasico.CodMunicipio",
+    "SiglaUF": "$srd_planobasico.SiglaUF",
+    "locpb": "$locpb.coordinates",
+    "loctx": "$loctx.coordinates",
+    "stnClass": 1.0,
+    "NumServico": 1.0,
+    "DataValFreq": "$habilitacao.DataValFreq",
+    "state": "$Status.state",
+    "MedCotaBaseTorre": "$estacao.MedCotaBaseTorre",
+    "hpat": 1,
+    "MedPotenciaOperacao": "$equipamento.transmissor.MedPotenciaOperacao",
+    "MedGMaxdBd": "$antena.principal.MedGMaxdBd",
+    "MedBeamTilt": "$antena.principal.MedBeamTilt",
+    "MedOrientNV": "$antena.principal.MedOrientNV",
+    "IndPolariz": "$antena.principal.IndPolariz",
+    "MedHCI": "$antena.principal.MedHCI",
+    "MedAtenLinhaTransmissaodB100m": "$linhatransmissao.principal.MedAtenLinhaTransmissaodB100m",
+    "MedComprimento": "$linhatransmissao.principal.MedComprimento",
+    "PerdasAcessorias_db": "$linhatransmissao.principal.PerdasAcessorias_db",
+}
+
+DICT_LICENCIAMENTO = {
+    "NumAto": "Num_Ato",
+    "NumFistel": "Fistel",
+    "NumServico": "Serviço",
+    "NomeEntidade": "Entidade",
+    "SiglaUf": "UF",
+    "NumEstacao": "Estação",
+    "CodTipoClasseEstacao": "Classe",
+    "NomeMunicipio": "Município",
+    "CodMunicipio": "Código_Município",
+    "DataValidade": "Validade_RF",
+    "FreqTxMHz": "Frequência",
+    "formId": "Tipo_Estação",
+    "Tecnologia": "Tecnologia",
+    "Latitude": "Latitude",
+    "Longitude": "Longitude",
+    "DesignacaoEmissao": "Designação_Emissão",
+    # 'PotenciaTransmissorWatts': 'Potência_Transmissor(W)',
+    # 'CodTipoAntena': 'Cod_Tipo_Antena',
+    # 'Polarizacao': 'Polarização_Antena',
+    # 'GanhoAntena': 'Ganho_Antena',
+    # 'FrenteCostaAntena': 'FC_Antena',
+    # 'AnguloMeiaPotenciaAntena': 'Ang_MP_Antena',
+    # 'AnguloElevacao': 'Ângulo_Elevação_Antena',
+    # 'Azimute_Antena': 'Azimute_Antena',
+    # 'AlturaAntena': 'Altura_Antena',
+    # 'PerdasAcessorias': 'Perdas_Acessorias',
+}
+
+PROJECTION_LICENCIAMENTO = {
+  "NumAto": 1.0,
+  "NumFistel": 1.0,
+  "NumServico": 1.0,
+  "NomeEntidade": 1.0,
+  "SiglaUf": 1.0,
+  "NumEstacao": 1.0,
+  "CodTipoClasseEstacao": 1.0,
+  "NomeMunicipio": 1.0,
+  "CodMunicipio": 1.0,
+  "DataValidade": 1.0,
+  "FreqTxMHz": 1.0,
+  "formId": 1.0,
+  "Tecnologia": 1.0,
+  "Latitude": 1.0,
+  "Longitude": 1.0,
+  "DesignacaoEmissao": 1.0
+}
+
 # %% ../nbs/00_constants.ipynb #2cc85745
 MONGO_TELECOM = {
     "$and": [
@@ -211,9 +370,9 @@ MONGO_SMP = {
 SQL_RADCOM = """
 select 
   distinct F.MedFrequenciaInicial as 'Frequência',
-  a.IndPolariz as "Polarizaçao",
-  a.MedHCI  as "Altura_Antena",
-  e2.MedPotenciaOperacao   as 'Potencia_Transmissor',
+  a.IndPolariz as "Polarização_Antena",
+  a.MedHCI  as "Altura_Antena(m)",
+  e2.MedPotenciaOperacao   as 'Potência_Transmissor(W)',
   SRD.IndFase as 'Fase', 
   ID.SiglaSituacao as 'Situação', 
   Ent.NomeEntidade as 'Entidade', 
@@ -246,6 +405,9 @@ order by Frequência, UF, Município
 SQL_STEL = """
 select 
   distinct f.MedTransmissaoInicial as 'Frequência', 
+  a.IndPolariz as "Polarização_Antena",
+  a.MedHCI  as "Altura_Antena(m)",
+  e2.MedPotenciaOperacao   as 'Potência_Transmissor(W)',
   uf.SiglaUnidadeFrequencia as 'Unidade', 
   d.CodClasseEmissao as 'Classe_Emissão', 
   d.SiglaLarguraEmissao as 'Largura_Emissão', 
@@ -273,6 +435,8 @@ from
   left join Servico s on s.NumServico = h.NumServico 
   and s.IdtServicoAreaAtendimento = 4 
   left join UnidadeFrequencia uf on uf.IdtUnidadeFrequencia = f.IdtUnidadeTransmissao 
+  left join EQUIPAMENTO e2 on e2.IdtEstacao = e.IdtEstacao
+  left join ANTENA_RD a on a.IdtEstacao = e.IdtEstacao 
 where 
   h.NumServico <> '010' 
   and e.DataExclusao is null 

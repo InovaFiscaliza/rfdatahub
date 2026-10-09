@@ -18,7 +18,7 @@ from dotenv import find_dotenv, load_dotenv
 from extracao.constants import (
 	AGG_SMP,
 	CHANNELS, 
-	COLUNAS,
+	COLS_STEL,
 	DICT_LICENCIAMENTO,
 	MONGO_SMP,
 	PROJECTION_LICENCIAMENTO,
@@ -62,7 +62,7 @@ class Smp(Mosaico):
 
     @property
     def columns(self):
-        return COLUNAS
+        return COLS_STEL
 
     @property
     def cols_mapping(self):
