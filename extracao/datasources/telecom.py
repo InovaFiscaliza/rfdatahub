@@ -92,7 +92,7 @@ class Telecom(Mosaico):
             .values
         )
         log = f'[("Colunas", {AGG_LICENCIAMENTO}), ("Processamento", "Agrupamento")]'
-        df_sub = self.register_log(df_sub, log, df_sub.Multiplicidade > 1)
+        self.register_log(df_sub, processing=log, row_filter=df_sub.Multiplicidade > 1)
         df_sub["Status"] = "L"
         df_sub["Fonte"] = "MOSAICO-LICENCIAMENTO"
         return df_sub.loc[:, self.columns]
