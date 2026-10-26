@@ -77,7 +77,7 @@ class Telecom(Mosaico):
         df = df.rename(columns=self.cols_mapping)
         df = self.split_designacao(df)
         duplicated = df.duplicated(subset=AGG_LICENCIAMENTO, keep="first")
-        df_sub = df[~duplicated].reset_index(drop=True)
+        df_sub = df[~duplicated].dropna(subset=AGG_LICENCIAMENTO).reset_index(drop=True)
         # discarded = df[duplicated].reset_index(drop=True)
         # log = f"""[("Colunas", {AGG_LICENCIAMENTO}),
         # ("Processamento", "Registro agrupado e descartado do arquivo final")]"""
@@ -85,14 +85,13 @@ class Telecom(Mosaico):
         # del discarded
         # gc.collect()
         # .count() drop the NaN from the subset, not keeping them
-        df_sub.dropna(subset=AGG_LICENCIAMENTO, inplace=True)
         df_sub["Multiplicidade"] = (
             df.groupby(AGG_LICENCIAMENTO, dropna=True, sort=False, observed=True)
             .size()
             .values
         )
-        log = f'[("Colunas", {AGG_LICENCIAMENTO}), ("Processamento", "Agrupamento")]'
-        df_sub = self.register_log(df_sub, log, df_sub.Multiplicidade > 1)
+        log = f'Registros Agrupados. "Colunas: {AGG_LICENCIAMENTO}'
+        df_sub = Mosaico.register_log(df=df_sub, processing=log, row_filter=df_sub.Multiplicidade > 1)
         df_sub["Status"] = "L"
         df_sub["Fonte"] = "MOSAICO-LICENCIAMENTO"
         return df_sub.loc[:, self.columns]

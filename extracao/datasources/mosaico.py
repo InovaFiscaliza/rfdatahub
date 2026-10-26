@@ -133,32 +133,21 @@ class Mosaico(Base, GetAttr):
         # gc.collect()
 
         # I didn't find a better way to do this, the LLMs suggestions were wrong!
-        df_temp = df[~duplicated]
-        df_sub = df_temp.dropna(subset=agg_cols).reset_index(drop=True)
+        df_sub = df[~duplicated].dropna(subset=agg_cols).reset_index(drop=True)
         # df_temp = df_temp.loc[~df_temp.index.isin(df_sub.index)]
 
         # # Discard and Log dropped rows
         # processing = f'Valor nulo presente nas colunas utilizadas para agrupamento: {agg_cols}'
         # Mosaico.register_log(df_temp, processing)
         # self.append2discarded(df_temp)
-        del df_temp
-        gc.collect()
-
-        grouped_stations = df.groupby(agg_cols, dropna=True, sort=False, observed=True)
-        del df
-        gc.collect()
-
-        df_sub["Multiplicidade"] = grouped_stations.size().values
-
-        df_sub["#Estação"] = grouped_stations["Estação"].apply(lambda x: list(x)).values
+                
+        df_sub["Multiplicidade"] = df.groupby(agg_cols, dropna=True, sort=False, observed=True).size().values
+        df_sub["#Estação"] = df.groupby(agg_cols, dropna=True, sort=False, observed=True)["Estação"].apply(lambda x: list(x)).values
         df_sub["#Estação"] = df_sub["#Estação"].astype("string", copy=False)
 
         row_filter = df_sub["Multiplicidade"] > 1
-        processing = "Registro agrupado."  # Colunas consideradas: {agg_cols}'
+        processing = f"Registros agrupados. Colunas: {agg_cols}"
         # TODO: Adicionar nova chave "Colunas Consideradas"
-        Mosaico.register_log(
-            df_sub, processing, column="#Estação", row_filter=row_filter
+        return Mosaico.register_log(
+            df=df_sub, processing=processing, row_filter=row_filter
         )
-
-        return df_sub
-

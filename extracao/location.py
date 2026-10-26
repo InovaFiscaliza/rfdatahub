@@ -40,8 +40,8 @@ class Geography:
         self._initialize()
 
     def _initialize(self):
-        self.log_empty_coords()
-        self.log_empty_code()
+        # self.log_empty_coords()
+        # self.log_empty_code()
         self.drop_rows_without_location_info()
         self.validate_coordinates_as_number()
         self.validate_codigo_municipio_as_number()
@@ -86,15 +86,15 @@ class Geography:
         right = (~empty_coords) & empty_code
         return {"empty_coords": left, "empty_code": right, "both": both}
 
-    def log_empty_coords(self):
-        """Log the rows with empty coordinates"""
-        self.log["empty_coords"]
+    # def log_empty_coords(self):
+    #     """Log the rows with empty coordinates"""
+    #     self.log["empty_coords"]
         # processing = 'Coordenadas nulas.'
         # Base.register_log(self.df, processing, row_filter=rows)
 
-    def log_empty_code(self):
-        """Log the rows with empty city code"""
-        self.log["empty_code"]
+    # def log_empty_code(self):
+    #     """Log the rows with empty city code"""
+    #     self.log["empty_code"]
         # processing = 'Código do Município nulo.'
         # Base.register_log(self.df, processing, row_filter=rows)
 
