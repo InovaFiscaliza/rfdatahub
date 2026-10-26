@@ -8,7 +8,7 @@ Docs: https://InovaFiscaliza.github.io/rfdatahub/aero.html.md"""
 __all__ = ['Aero']
 
 # %% ../../nbs/03_aero.ipynb #9da535cd
-from typing import List, Union, Iterable   
+from typing import List   
 
 
 
@@ -41,7 +41,8 @@ class Aero(Base):
         return ["Frequência", "Latitude", "Longitude", "Entidade", "Fonte"]
 
     def extraction(self) -> pd.DataFrame:
-        func = lambda f: f()
+        def func(f):
+            return f()
         radares = pd.read_csv(Path(__file__).parent / "arquivos" / "radares.csv")
         radares["Fonte"] = "RADAR"
         sources = [get_icao, get_aisw, get_aisg, get_redemet]

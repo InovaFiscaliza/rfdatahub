@@ -9,7 +9,6 @@ __all__ = ['MONGO_URI', 'Mosaico']
 
 # %% ../../nbs/01d_mosaico.ipynb #948239df
 import os
-import gc
 
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
