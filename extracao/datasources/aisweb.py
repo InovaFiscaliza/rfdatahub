@@ -20,7 +20,7 @@ from dotenv import find_dotenv, load_dotenv
 from fastcore.parallel import parallel
 from fastcore.utils import store_attr
 
-from .icao import map_channels
+from extracao.datasources.icao import map_channels
 
 load_dotenv(find_dotenv(), override=True)
 
@@ -127,10 +127,10 @@ class AisWeb:
             df.loc[idx, "Frequência"] = df.loc[idx, "freq"]
             df.loc[idx, "Latitude"] = df.loc[idx, "lat"].apply(
                 lambda x: convert_latitude(x)
-            )
+            ).astype("string")
             df.loc[idx, "Longitude"] = df.loc[idx, "lng"].apply(
                 lambda x: convert_longitude(x)
-            )
+            ).astype("string")
             df.loc[idx, "Entidade"] = (
                 df.loc[idx, "Entidade"]
                 + " "
