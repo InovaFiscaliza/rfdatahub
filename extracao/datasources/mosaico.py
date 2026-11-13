@@ -51,7 +51,9 @@ class Mosaico(Base, GetAttr):
 
     def _extract(self, collection: str, pipeline: list):
         if self.read_cache:
-            return self._read(f"{self.stem}_raw")
+            df = self._read(f"{self.stem}_raw")
+            df["Log"] = "[]"
+            return df
         client = self.connect()
         database = client[self.database]
         db_collection = database[collection]
