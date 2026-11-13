@@ -15,7 +15,7 @@ from urllib.request import urlopen
 
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
-from ..constants import VOR_ILS_DME
+from extracao.constants import VOR_ILS_DME
 
 load_dotenv(find_dotenv(), override=True)
 
@@ -147,3 +147,9 @@ def get_aisg() -> pd.DataFrame:  # DataFrame com todos os dados do GEOAISWEB
         )
     )
     return df.astype("string").drop_duplicates(UNIQUE_COLS, ignore_index=True)
+
+
+if __name__ == "__main__":
+    df = get_aisg()
+    print(df.shape)
+    print(df.sample(5))

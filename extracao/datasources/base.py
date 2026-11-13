@@ -106,7 +106,7 @@ class Base:
         if row_filter is None:
             row_filter = pd.Series(True, index=df.index)
         elif not row_filter.any():
-            return
+            return df
         if "Log" not in df:
             df["Log"] = "[]"
         else:
@@ -122,6 +122,7 @@ class Base:
         else:
             df_logged = df.loc[row_filter, ["Log"]]
         df.loc[row_filter, "Log"] = df_logged.progress_apply(log_function, axis=1)
+        return df
 
     @staticmethod
     def format_log(

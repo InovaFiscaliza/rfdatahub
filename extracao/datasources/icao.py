@@ -12,7 +12,7 @@ from typing import Iterable
 
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
-from ..constants import PATH_NAV, PATH_COM, VOR_ILS_DME
+from extracao.constants import PATH_NAV, PATH_COM, VOR_ILS_DME
 
 load_dotenv(find_dotenv(), override=True)
 
