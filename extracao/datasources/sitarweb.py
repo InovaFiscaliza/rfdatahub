@@ -114,12 +114,12 @@ class Radcom(Sitarweb):
 
         a = df.Situação.isna()
         df.loc[a, "Classe"] = df.loc[a, "Fase"]
-        # processing = 'Classe=Fase. Situação Nula. Colunas Fase e Situação descartadas'
-        # Base.register_log(df, processing, row_filter=a)
+        processing = 'Classe=Fase. Situação Nula. Colunas Fase e Situação descartadas'
+        Base.register_log(df, processing, row_filter=a)
 
         df.loc[~a, "Classe"] = df.loc[~a, "Fase"] + "-" + df.loc[~a, "Situação"]
-        # processing = 'Classe=Fase-Situação. Colunas Fase e Situação descartadas'
-        # Base.register_log(df, processing, row_filter=~a)
+        processing = 'Classe=Fase-Situação. Colunas Fase e Situação descartadas'
+        Base.register_log(df, processing, row_filter=~a)
         df.drop(["Fase", "Situação"], axis=1, inplace=True)
 
         df["Frequência"] = pd.to_numeric(df["Frequência"], errors="coerce").astype(
@@ -127,7 +127,7 @@ class Radcom(Sitarweb):
         )
         discarded = df[df.Frequência.isna()]
         if not discarded.empty:
-            processing = "Coluna Frequência com valores nulos"
+            processing = "Frequência Nula."
             Base.register_log(discarded, processing)
             self.append2discarded(discarded)
         df.dropna(subset=["Frequência"], inplace=True)
@@ -152,7 +152,6 @@ class Stel(Sitarweb):
         df: pd.DataFrame,  # DataFrame com o resultantes do banco de dados
     ) -> pd.DataFrame:  # DataFrame formatado
         """Formata, limpa e padroniza os dados provenientes da query no banco"""
-        df["Status"] = "L"
         df["Entidade"] = df.Entidade.astype("string", copy=False).str.strip()
         df["Fonte"] = "STEL"
         df["Largura_Emissão"] = df["Largura_Emissão"].astype("string", copy=False)

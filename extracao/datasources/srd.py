@@ -117,8 +117,9 @@ class SRD(Mosaico):
 
         # Discard null frequencies
         discarded = df[df.Frequência.isna()].copy()
-        processing = "Valor Nulo."
-        Mosaico.register_log(discarded, processing, "Frequência")
+        if not discarded.empty:
+            processing = "Frequência Nula."
+            Mosaico.register_log(discarded, processing, "Frequência")
 
         df.dropna(subset="Frequência", ignore_index=True, inplace=True)  # type: ignore
         df["Frequência"] = (
