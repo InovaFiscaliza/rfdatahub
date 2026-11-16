@@ -85,15 +85,15 @@ class Base:
         return pd.NA, pd.NA
 
     # @cached_property
-    # def discarded(self) -> pd.DataFrame:
-    # 	return pd.DataFrame(columns=self.columns)
+    def discarded(self) -> pd.DataFrame:
+        return pd.DataFrame(columns=self.columns)
 
-    # def append2discarded(self, df: pd.DataFrame) -> None:
-    # 	"""Receives one of more dataframes and append to the discarded dataframe"""
-    # 	if not self.discarded.empty:
-    # 		self.discarded = pd.concat([self.discarded, df], ignore_index=True, copy=False)
-    # 	else:
-    # 		self.discarded = df
+    def append2discarded(self, df: pd.DataFrame) -> None:
+        """Receives one of more dataframes and append to the discarded dataframe"""
+        if not self.discarded.empty:
+            self.discarded = pd.concat([self.discarded, df], ignore_index=True, copy=False)
+        else:
+            self.discarded = df
 
     @staticmethod
     def register_log(
@@ -136,7 +136,7 @@ class Base:
         log = listify(eval(row.loc["Log"]))
         new_log = {"Processamento": processing}
         if column is not None:
-            new_log.update({"Coluna": column, "Original": row.loc[column]})
+            new_log.update({f"{column}_Original": row.loc[column]})
         log.append(new_log)
         return json.dumps(log, ensure_ascii=False)
 
@@ -176,5 +176,5 @@ class Base:
         if folder is None:
             folder = self.folder
         self._save(self.df, folder, self.stem)
-        # self._save(self.discarded, folder, f'{self.stem}_discarded')
+        self._save(self.discarded, folder, f'{self.stem}_discarded')
 

@@ -322,7 +322,9 @@ PROJECTION_LICENCIAMENTO = {
   "Tecnologia": 1.0,
   "Latitude": 1.0,
   "Longitude": 1.0,
-  "DesignacaoEmissao": 1.0
+  "DesignacaoEmissao": 1.0,
+  "Status": "Status.state",
+
 }
 
 # %% ../nbs/00_constants.ipynb #2cc85745
@@ -331,7 +333,7 @@ MONGO_TELECOM = {
         {"DataExclusao": {"$in": [None, ""]}},
         {"DataMotivoExclusao": {"$in": [None, ""]}},
         {"DataValidade": {"$nin": ["", None]}},
-        {"Status.state": "LIC-LIC-01"},
+        # {"Status.state": "LIC-LIC-01"},
         {"NumServico": {"$nin": ["010", "045", "171", "450", "750", "", None]}},
         {"FreqTxMHz": {"$nin": [None, "", 0], "$type": 1.0}},
         {"CodMunicipio": {"$nin": [None, ""]}},
@@ -355,7 +357,7 @@ MONGO_SMP = {
         {"DataExclusao": {"$in": [None, ""]}},
         {"DataMotivoExclusao": {"$in": [None, ""]}},
         {"DataValidade": {"$nin": ["", None]}},
-        {"Status.state": "LIC-LIC-01"},
+        # {"Status.state": "LIC-LIC-01"},
         {"NumServico": "010"},
         {"FreqTxMHz": {"$nin": [None, "", 0], "$type": 1.0}},
         {"CodMunicipio": {"$nin": [None, ""]}},
@@ -421,7 +423,8 @@ select
   e.SiglaUf as 'UF', 
   e.MedLatitudeDecimal as 'Latitude', 
   e.MedLongitudeDecimal as 'Longitude', 
-  c.DataValidadeRadiofrequencia as 'Validade_RF' 
+  c.DataValidadeRadiofrequencia as 'Validade_RF',
+  e.IndStatusEstacao as 'Status'
 from 
   estacao e 
   left join contrato c on e.IdtContrato = c.Idtcontrato 
@@ -440,10 +443,8 @@ from
 where 
   h.NumServico <> '010' 
   and e.DataExclusao is null 
-  and e.IndStatusEstacao = 'L' 
   and mu.CodMunicipio is not null
   and f.MedTransmissaoInicial is not null 
-  and f.CodStatusRegistro = 'L' 
   and c.DataValidadeRadiofrequencia is not null 
 """
 
