@@ -147,7 +147,7 @@ class Mosaico(Base, GetAttr):
         df_sub["#Estação"] = df_sub["#Estação"].astype("string", copy=False)
 
         row_filter = df_sub["Multiplicidade"] > 1
-        processing = f"Registros agrupados. Colunas: {agg_cols}"
+        processing = f"Registros agrupados. Colunas Consideradas: {agg_cols}"
         # TODO: Adicionar nova chave "Colunas Consideradas"
         return Mosaico.register_log(
             df=df_sub, processing=processing, row_filter=row_filter
