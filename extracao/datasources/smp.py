@@ -222,7 +222,6 @@ class Smp(Mosaico):
         df: pd.DataFrame,  # Source dataframe
     ) -> pd.DataFrame:  # Cleaned dataframe with some additional columns added
         """Formats and adds some helper columns to the dataframe"""
-        df["Status"] = "L"
         df["Serviço"] = "010"
         down = df.drop("Frequência_Recepção", axis=1)
         down["Fonte"] = "MOSAICO-LICENCIAMENTO"
