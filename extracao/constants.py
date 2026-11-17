@@ -323,7 +323,7 @@ PROJECTION_LICENCIAMENTO = {
   "Latitude": 1.0,
   "Longitude": 1.0,
   "DesignacaoEmissao": 1.0,
-  "Status": "Status.state",
+  "Status": "$Status.state",
 
 }
 
