@@ -3,7 +3,7 @@ from extracao.datasources.telecom import Telecom
 import typer
 
 
-def main(limit: int = 0, read_cache: bool = True):
+def main(limit: int = 0, read_cache: bool = False):
 	start = time.perf_counter()
 	data = Telecom(limit=limit, read_cache=read_cache)
 	data.update()

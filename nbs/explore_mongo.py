@@ -27,6 +27,8 @@ def _(find_dotenv, load_dotenv, os):
         "NomeMunicipio": "$srd_planobasico.NomeMunicipio",
         "CodMunicipio": "$srd_planobasico.CodMunicipio",
         "SiglaUF": "$srd_planobasico.SiglaUF",
+        "Latitude": "$srd_planobasico.MedLatitudeDecimal",
+        "Longitude": "$srd_planobasico.MedLongitudeDecimal",
         "locpb": "$locpb.coordinates",
         "loctx": "$loctx.coordinates",
         "stnClass": 1.0,
@@ -45,7 +47,8 @@ def _(find_dotenv, load_dotenv, os):
         "MedComprimento": "$linhatransmissao.principal.MedComprimento",
         "PerdasAcessorias_db": "$linhatransmissao.principal.PerdasAcessorias_db",
     }
-    return (URI,)
+
+    return PROJECTION_SRD, URI
 
 
 @app.cell
@@ -93,8 +96,7 @@ def _():
         "$and": [
             {"frequency": {"$nin": [None, "", 0], "$type": 1.0}},
             {"srd_planobasico.CodMunicipio": {"$nin": [None, ""]}},
-            {"NumFistel": {"$nin": ["", None]}},
-        ]
+            {"NumFistel": {"$nin": ["", None]}}   ]
     }
     MONGO_SMP = {
         "$and": [
@@ -179,13 +181,13 @@ def _():
       "DataMotivoExclusao": 1.0,
       "loctx": 1.0
     }
-    return MONGO_TELECOM, PROJECTION_LICENCIAMENTO
+    return (MONGO_SRD,)
 
 
 @app.cell
-def _(MONGO_TELECOM, PROJECTION_LICENCIAMENTO, pd, sms):
-    pipeline = [{"$match": MONGO_TELECOM}, {"$project": PROJECTION_LICENCIAMENTO}] #, {"$limit": 100000}]
-    df = pd.DataFrame(list(sms["licenciamento"].aggregate(pipeline)))
+def _(MONGO_SRD, PROJECTION_SRD, pd, sms):
+    pipeline = [{"$match": MONGO_SRD}, {"$project": PROJECTION_SRD}] #, {"$limit": 100000}]
+    df = pd.DataFrame(list(sms["srd"].aggregate(pipeline)))
     return (df,)
 
 
@@ -196,7 +198,14 @@ def _(df):
 
 
 @app.cell
-def _():
+def _(df):
+    df.isna().sum()
+    return
+
+
+@app.cell
+def _(df):
+    df[df.locpb.isna()]
     return
 
 

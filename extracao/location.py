@@ -100,29 +100,30 @@ class Geography:
 
     def drop_rows_without_location_info(self) -> None:
         rows = self.log["both"]
-        # processing = 'Coordenadas e Código do Município nulos. Registro descartado'
+        processing = 'Coordenadas e Código do Município nulos. Registro descartado'
         # # TODO: append to discarded
-        # Base.register_log(self.df, processing, row_filter=rows)
+        Base.register_log(self.df, processing, row_filter=rows)
+        self.discarded = self.df[rows]
         self.df = self.df[~rows]
 
     def validate_coordinates_as_number(self) -> None:
         for column in ["Latitude", "Longitude"]:
-            self.df[column] = self.df[column].astype("string", copy=False)
+            self.df[column] = self.df[column].astype("string")
             self.df[column] = self.df[column].str.replace(",", ".")
             self.df[column] = self.df[column].str.strip()
             self.df[f"#{column}"] = self.df[column]
             self.df[column] = pd.to_numeric(self.df[column], errors="coerce").astype(
-                "float", copy=False
+                "float"
             )  # type: ignore
             bad_coords = ~self.log["empty_coords"]
             bad_coords &= self.df[column].isna()
             self.log.update({"coords_not_numeric": bad_coords})
-            Base.register_log(self.df, "Valor Inválido.", f"#{column}", bad_coords)
+            Base.register_log(self.df, f"Valor Não Numérico {column}.", f"#{column}", bad_coords)
             self.df.drop(columns=[f"#{column}"], inplace=True)
 
     def validate_codigo_municipio_as_number(self) -> None:
         self.df["Código_Município"] = self.df["Código_Município"].astype(
-            "string", copy=False
+            "string"
         )
         self.df["Código_Município"] = (
             self.df["Código_Município"].str.strip().str.replace(".", "")
@@ -130,11 +131,11 @@ class Geography:
         self.df["#Código_Município"] = self.df["Código_Município"]
         self.df["Código_Município"] = pd.to_numeric(
             self.df["Código_Município"], errors="coerce"
-        ).astype("string", copy=False)
+        ).astype("string")
         bad_codes = ~self.log["empty_code"]
         bad_codes &= self.df["Código_Município"].isna()
         self.log.update({"code_not_numeric": bad_codes})
-        Base.register_log(self.df, "Valor Inválido.", "#Código_Município", bad_codes)
+        Base.register_log(self.df, "Código Município Inválido.", "#Código_Município", bad_codes)
         self.df.drop(columns=["#Código_Município"], inplace=True)
 
     def _replace_columns(self, columns, originals, log, row_filter, float_cols=False):
@@ -174,7 +175,7 @@ class Geography:
             remove_punctuation
         )
 
-        self.df["Município"] = self.df["Município"].astype("string", copy=False)
+        self.df["Município"] = self.df["Município"].astype("string")
         self.df["Município_ASCII"] = (
             self.df["Município"].fillna("").apply(remove_punctuation)
         )
@@ -205,7 +206,7 @@ class Geography:
         # Base.register_log(self.df, processing, 'Código_Município', bad_codes)
         columns = ["Município_y", "Código_Município_y"]
         originals = ["Município", "Código_Município"]
-        log = "Valor Inválido."
+        log = "Código do Município não consta no IBGE."
         # TODO: Verify if there isn't a wrong Município match, given Município is not unique
         self._replace_columns(columns, originals, log, bad_codes)
 
@@ -216,7 +217,7 @@ class Geography:
 
         self.df[["Município", "Código_Município"]] = self.df[
             ["Município", "Código_Município"]
-        ].astype("string", copy=False)
+        ].astype("string")
 
     def merge_df_with_ibge(self):
         """It merges the instance df with the IBGE dfs based on `Código_Município`
@@ -236,7 +237,7 @@ class Geography:
             on="Código_Município",
             how="left",
             copy=False,
-        ).astype("string", copy=False)
+        ).astype("string")
 
         self.df.rename(
             columns={
@@ -261,7 +262,7 @@ class Geography:
         self.log.update({"filled_city_coords": rows})
         columns = ["Latitude_IBGE", "Longitude_IBGE"]
         originals = ["Latitude", "Longitude"]
-        log = "Valor Nulo."
+        log = "Valor Nulo de Coordenadas. Inserido coordenadas do Município"
         # Lembre-se que colunas float não é possível comparar diretamente como strings
         self._replace_columns(columns, originals, log, rows, float_cols=True)
 
@@ -273,7 +274,7 @@ class Geography:
         columns = ["Município_IBGE", "UF_IBGE"]
         self.df.loc[:, "Município"] = self.df.loc[:, "Município"].str.title()
         self.df.loc[:, "UF"] = self.df.loc[:, "UF"].str.upper()
-        log = ""
+        log = "Nomes de Municípios e UFs normalizados de acordo com o IBGE"
         self._replace_columns(columns, originals, log, rows)
 
     def intersect_coordinates_on_poligon(self):
@@ -294,11 +295,11 @@ class Geography:
 
         # Spatial join points to the regions
         gdf_joined = gdf_points.sjoin(regions, how="left", predicate="intersects")
-        gdf_joined["CD_MUN"] = gdf_joined["CD_MUN"].astype("string", copy=False)
-        gdf_joined["NM_MUN"] = gdf_joined["NM_MUN"].astype("string", copy=False)
-        gdf_joined["SIGLA_UF"] = gdf_joined["SIGLA_UF"].astype("string", copy=False)
-        gdf_joined["LAT"] = gdf_joined.geometry.centroid.y.astype("string", copy=False)
-        gdf_joined["LON"] = gdf_joined.geometry.centroid.x.astype("string", copy=False)
+        gdf_joined["CD_MUN"] = gdf_joined["CD_MUN"].astype("string")
+        gdf_joined["NM_MUN"] = gdf_joined["NM_MUN"].astype("string")
+        gdf_joined["SIGLA_UF"] = gdf_joined["SIGLA_UF"].astype("string")
+        gdf_joined["LAT"] = gdf_joined.geometry.centroid.y.astype("string")
+        gdf_joined["LON"] = gdf_joined.geometry.centroid.x.astype("string")
 
         gdf_joined.drop(
             [
@@ -320,7 +321,7 @@ class Geography:
         self.log.update({"filled_city_info": rows})
         originals = ["Código_Município", "Município", "UF"]
         columns = ["CD_MUN", "NM_MUN", "SIGLA_UF"]
-        log = "Valor retirado do polígono territorial, à partir das coordenadas."
+        log = "Código do município retirado do polígono territorial, à partir das coordenadas."
         self._replace_columns(columns, originals, log, rows)
 
     def substitute_divergent_coordinates(self):
@@ -334,9 +335,9 @@ class Geography:
         wrong_city_coords &= self.df["Código_Município"] != self.df["CD_MUN"]
         wrong_city_coords &= self.log["city_normalized"]
         self.log.update({"wrong_city_coords": wrong_city_coords})
-        originals = ["Latitude", "Longitude"]
-        columns = ["Latitude_IBGE", "Longitude_IBGE"]
-        log = "Coordenadas do Município inseridas."
+        originals = ["Latitude", "Longitude", "Código_Município"]
+        columns = ["Latitude_IBGE", "Longitude_IBGE", "CD_MUN"]
+        log = "Coordenadas divergentes (Polígono do IBGE retorna município distinto). Coordenadas do Município do IBGE."
         self._replace_columns(columns, originals, log, wrong_city_coords, True)
 
     def input_info_from_coords(self):

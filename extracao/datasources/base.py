@@ -40,7 +40,7 @@ class Base:
         file = Path(f"{self.folder}/{stem}.parquet")
         try:
             return pd.read_parquet(file, dtype_backend=backend).astype(
-                "string", copy=False
+                "string"
             )
         except (ArrowInvalid, FileNotFoundError) as e:
             raise ValueError(f"Error when reading {file}") from e
@@ -53,7 +53,7 @@ class Base:
         folder.mkdir(parents=True, exist_ok=True)
         try:
             file = Path(f"{folder}/{stem}.parquet")
-            df.astype("category", copy=False).to_parquet(file, index=False, engine="pyarrow")
+            df.astype("category").to_parquet(file, index=False, engine="pyarrow")
         except (ArrowInvalid, ArrowTypeError) as e:
             raise Exception("Não foi possível salvar o arquivo parquet") from e
         return df
@@ -84,14 +84,14 @@ class Base:
             return str(multiplier * number), classe
         return pd.NA, pd.NA
 
-    # @cached_property
+    @cached_property
     def discarded(self) -> pd.DataFrame:
         return pd.DataFrame(columns=self.columns)
 
     def append2discarded(self, df: pd.DataFrame) -> None:
         """Receives one of more dataframes and append to the discarded dataframe"""
         if not self.discarded.empty:
-            self.discarded = pd.concat([self.discarded, df], ignore_index=True, copy=False)
+            self.discarded = pd.concat([self.discarded, df], ignore_index=True)
         else:
             self.discarded = df
 
@@ -110,14 +110,14 @@ class Base:
         if "Log" not in df:
             df["Log"] = "[]"
         else:
-            df["Log"] = df["Log"].astype("string", copy=False).fillna("[]")
+            df["Log"] = df["Log"].astype("string").fillna("[]")
             df["Log"] = df["Log"].str.replace("^$", r"[]", regex=True)
         pp(f"[bold green]Logging:[/bold green] [italic]{processing}")
         log_function = partial(Base.format_log, processing=processing, column=column)
         if column is not None:
             df_logged = df.loc[row_filter, ["Log", column]].copy()
             df_logged[column] = (
-                df_logged[column].astype("string", copy=False).fillna("")
+                df_logged[column].astype("string").fillna("")
             )
         else:
             df_logged = df.loc[row_filter, ["Log"]]

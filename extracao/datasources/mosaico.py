@@ -58,7 +58,7 @@ class Mosaico(Base, GetAttr):
         database = client[self.database]
         db_collection = database[collection]
         df = pd.DataFrame(
-            list(db_collection.aggregate(pipeline)), copy=False, dtype='string'
+            list(db_collection.aggregate(pipeline)), dtype='string'
         )
         # Substitui strings vazias, espaços e listas vazias por nulo
         df = df.replace(r"^\s*$|^\[\]$", pd.NA, regex=True)
@@ -93,16 +93,16 @@ class Mosaico(Base, GetAttr):
 
         # Removes empty rows
         df = df[df["Temp"] != "/"]
-        df["Temp"] = df["Temp"].astype("string", copy=False).fillna("")
+        df["Temp"] = df["Temp"].astype("string").fillna("")
 
         # Apply the parse_bw function
         parsed_data = zip(*df["Temp"].apply(Base.parse_bw))
 
         df["Largura_Emissão(kHz)"], df["Classe_Emissão"] = parsed_data
         df["Largura_Emissão(kHz)"] = df["Largura_Emissão(kHz)"].astype(
-            "string", copy=False
+            "string"
         )
-        df["Classe_Emissão"] = df["Classe_Emissão"].astype("string", copy=False)
+        df["Classe_Emissão"] = df["Classe_Emissão"].astype("string")
         return df.drop(["Designação_Emissão", "Temp"], axis=1)
 
     def exclude_duplicated(
@@ -115,9 +115,9 @@ class Mosaico(Base, GetAttr):
         """
         df["Estação"] = (
             df["Estação"]
-            .astype("string", copy=False)
+            .astype("string")
             .fillna("-1")
-            .astype("int", copy=False, errors="ignore")
+            .astype("int", errors="ignore")
         )
         df = df.sort_values("Estação", ignore_index=True)
         df["Largura_Emissão(kHz)"] = pd.to_numeric(
@@ -144,7 +144,7 @@ class Mosaico(Base, GetAttr):
                 
         df_sub["Multiplicidade"] = df.groupby(agg_cols, dropna=True, sort=False, observed=True).size().values
         df_sub["#Estação"] = df.groupby(agg_cols, dropna=True, sort=False, observed=True)["Estação"].apply(lambda x: list(x)).values
-        df_sub["#Estação"] = df_sub["#Estação"].astype("string", copy=False)
+        df_sub["#Estação"] = df_sub["#Estação"].astype("string")
 
         row_filter = df_sub["Multiplicidade"] > 1
         processing = f"Registros agrupados. Colunas Consideradas: {agg_cols}"

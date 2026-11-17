@@ -3,7 +3,7 @@ from extracao.datasources.smp import Smp
 import typer
 
 
-def main(limit: int = 0, read_cache: bool = True):
+def main(limit: int = 0, read_cache: bool = False):
 	start = time.perf_counter()
 	data = Smp(limit=limit, read_cache=read_cache)
 	data.update()
@@ -13,3 +13,4 @@ def main(limit: int = 0, read_cache: bool = True):
 
 if __name__ == '__main__':
 	typer.run(main)
+	

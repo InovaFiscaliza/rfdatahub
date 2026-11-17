@@ -46,7 +46,7 @@ def get_redemet() -> (
     df["Frequência"] = "2800"
     df["Entidade"] = df.nome.astype("string")
     df = df[["Frequência", "lat_center", "lon_center", "Entidade"]].astype(
-        "string", copy=False
+        "string"
     )
     df["Fonte"] = "REDEMET"
     df = df.rename(columns={"lat_center": "Latitude", "lon_center": "Longitude"})

@@ -69,8 +69,8 @@ def merge_on_frequency(
     It's assumed the have the same columns or one set is contained in the other,
     otherwise the various filters won't work as expected
     """
-    df_left = df_left.astype("string", copy=False).drop_duplicates(ignore_index=True)
-    df_right = df_right.astype("string", copy=False).drop_duplicates(ignore_index=True)
+    df_left = df_left.astype("string").drop_duplicates(ignore_index=True)
+    df_right = df_right.astype("string").drop_duplicates(ignore_index=True)
     df = pd.merge(
         df_left,
         df_right,
@@ -154,7 +154,7 @@ def merge_on_frequency(
     merge_cols.remove("Distance")
     # Since it's an outer join, keep only the columns that are in both
     df_close_merge = (
-        pd.merge(df_both_left, df_both_right, how="inner", on=merge_cols, copy=False)
+        pd.merge(df_both_left, df_both_right, how="inner", on=merge_cols)
         .drop("Distance_y", axis=1)
         .rename(columns={"Distance_x": "Distance"})
     )
@@ -248,14 +248,14 @@ def merge_on_frequency(
     return pd.concat(
         [only_left, df_both_far_left, df_final_merge, only_right, df_both_far_right],
         ignore_index=True,
-    ).astype("string", copy=False)
+    ).astype("string")
 
 
 
 # %% ../nbs/00b_format.ipynb #2ccd9eb6
 def _left_filter(df, df_close_merge, merge_cols):
     df = pd.merge(
-        df, df_close_merge, how="left", on=merge_cols, indicator=True, copy=False
+        df, df_close_merge, how="left", on=merge_cols, indicator=True
     )
     df = df.loc[df["_merge"] == "left_only"]
     return df.drop(["_merge", "Distance_y"], axis=1).rename(
@@ -283,12 +283,12 @@ def cast2int(column: pd.Series) -> pd.Series:
 
 def cast2str(column: pd.Series) -> pd.Series:
     column.replace("", "-1", inplace=True)
-    return column.astype("string", copy=False).fillna("-1")
+    return column.astype("string").fillna("-1")
 
 
 def cast2cat(column: pd.Series) -> pd.Series:
     column.replace("", "-1", inplace=True)
-    return column.fillna("-1").astype("category", copy=False)
+    return column.fillna("-1").astype("category")
 
 
 def format_types(df):

@@ -123,11 +123,11 @@ class Smp(Mosaico):
         grouped_channels["Faixas"] = pd.NA
         grouped_channels[["Blocos_Downlink", "Faixas", "Canalização"]] = (
             grouped_channels[["Blocos_Downlink", "Faixas", "Canalização"]].astype(
-                "string", copy=False
+                "string"
             )
         )
         grouped_channels["Offset"] = grouped_channels["Offset"].astype(
-            "float", copy=False
+            "float"
         )
 
         for row in grouped_channels.itertuples():

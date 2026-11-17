@@ -134,24 +134,24 @@ class Estacoes(Base):
         """Process the log and save in a different dataframe"""
         log = df["Log"].progress_apply(merge_dicts)
         labels, uniques = pd.factorize(log, sort=False)
-        log = pd.DataFrame({"Log": uniques}, dtype="string", copy=False)
+        log = pd.DataFrame({"Log": uniques}, dtype="string")
         log.to_parquet(f"{self.folder}/log.parquet", compression="gzip", index=False)
         df["Log"] = pd.to_numeric(labels, downcast="integer")
         return df
 
     def _format(self, dfs: L) -> pd.DataFrame:
         aero = dfs.pop()
-        anatel = pd.concat(dfs, ignore_index=True, copy=False).astype(
-            "string", copy=False
+        anatel = pd.concat(dfs, ignore_index=True).astype(
+            "string"
         )
         df = merge_on_frequency(anatel, aero)
         df = Geography(df).validate()
         df = Estacoes._simplify_sources(df)
         df = Estacoes._remove_invalid_frequencies(df)
-        df = df.astype("string", copy=False)
+        df = df.astype("string")
         for column in df.columns:
             df[column] = df[column].str.replace(r"^-1\.0$|^\s$", "-1", regex=True)
-        df = df.fillna("-1").astype("category", copy=False)
+        df = df.fillna("-1").astype("category")
         df = self.process_log(df)
         return df.loc[:, self.columns]
 

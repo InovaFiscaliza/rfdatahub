@@ -101,7 +101,7 @@ class Radcom(Sitarweb):
         df: pd.DataFrame,  # DataFrame com o resultantes do banco de dados
     ) -> pd.DataFrame:  # DataFrame formatado
         """Formata, limpa e padroniza os dados provenientes da query no banco"""
-        df["Entidade"] = df["Entidade"].astype("string", copy=False).str.strip()
+        df["Entidade"] = df["Entidade"].astype("string").str.strip()
         df["Serviço"] = "231"
         df["Classe_Emissão"] = pd.NA
         df["Largura_Emissão(kHz)"] = "256"
@@ -109,8 +109,8 @@ class Radcom(Sitarweb):
         df["Status"] = "RADCOM"
         df["Fonte"] = "SRD"
         df["Multiplicidade"] = "1"
-        df["Fase"] = df["Fase"].astype("string", copy=False)
-        df["Situação"] = df["Situação"].astype("string", copy=False)
+        df["Fase"] = df["Fase"].astype("string")
+        df["Situação"] = df["Situação"].astype("string")
 
         a = df.Situação.isna()
         df.loc[a, "Classe"] = df.loc[a, "Fase"]
@@ -152,15 +152,15 @@ class Stel(Sitarweb):
         df: pd.DataFrame,  # DataFrame com o resultantes do banco de dados
     ) -> pd.DataFrame:  # DataFrame formatado
         """Formata, limpa e padroniza os dados provenientes da query no banco"""
-        df["Entidade"] = df.Entidade.astype("string", copy=False).str.strip()
+        df["Entidade"] = df.Entidade.astype("string").str.strip()
         df["Fonte"] = "STEL"
-        df["Largura_Emissão"] = df["Largura_Emissão"].astype("string", copy=False)
+        df["Largura_Emissão"] = df["Largura_Emissão"].astype("string")
         df.loc[:, ["Largura_Emissão(kHz)", "_"]] = (
             df.Largura_Emissão.fillna("").apply(self.parse_bw).tolist()
         )
         df.drop(["Largura_Emissão", "_"], axis=1, inplace=True)
         df.loc[:, "Validade_RF"] = df.Validade_RF.astype(
-            "string", copy=False
+            "string"
         ).str.slice(0, 10)
         df["Frequência"] = pd.to_numeric(df["Frequência"], errors="coerce").astype(
             "float"

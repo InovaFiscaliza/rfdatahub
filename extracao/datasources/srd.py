@@ -82,18 +82,20 @@ class SRD(Mosaico):
         database = client[self.database]
         db_collection = database[collection]
         df = pd.DataFrame(
-            list(db_collection.aggregate(pipeline)), copy=False,
+            list(db_collection.aggregate(pipeline)),
         )
         for row in df.itertuples():
             if isinstance(row.loctx, (list, tuple)) and len(row.loctx) == 2:
                 df.loc[row.Index, ["LongTX", "LatTX"]] = str(row.loctx[0]), str(row.loctx[1])
             if isinstance(row.locpb, (list, tuple)) and len(row.locpb) == 2:
                 df.loc[row.Index, ["LongPB", "LatPB"]] = str(row.locpb[0]), str(row.locpb[1])
+            elif isinstance(row.locpb, dict) and len(row.locpb) == 2:
+                df.loc[row.Index, ["LongPB", "LatPB"]] = str(row.locpb['0']), str(row.locpb['1'])
         c = df.LatPB.isna() & df.LatTX.notna()
         df.loc[c, ["LongPB", "LatPB"]] = df.loc[c, ["LongTX", "LatTX"]] 
         
         # Substitui strings vazias, espaços e listas vazias por nulo
-        df = df.astype("string", copy=False).replace(r"^\s*$|^\[\]$", pd.NA, regex=True)
+        df = df.astype("string").replace(r"^\s*$|^\[\]$", pd.NA, regex=True)
         # Create the Log Column
         df["Log"] = "[]"
         return df
@@ -123,7 +125,7 @@ class SRD(Mosaico):
 
         df.dropna(subset="Frequência", ignore_index=True, inplace=True)  # type: ignore
         df["Frequência"] = (
-            df.Frequência.astype("string", copy=False)
+            df.Frequência.astype("string")
             .str.replace(",", ".")
             .astype("float")
         )
@@ -131,16 +133,16 @@ class SRD(Mosaico):
         df.loc[df["Serviço"] == "205", "Frequência"] = df.loc[
             df["Serviço"] == "205", "Frequência"
         ].apply(lambda x: float(Decimal(x) / Decimal(1000)))
-        df["Validade_RF"] = df.Validade_RF.astype("string", copy=False).str.slice(0, 10)
+        df["Validade_RF"] = df.Validade_RF.astype("string").str.slice(0, 10)
 
         df["Fonte"] = "MOSAICO-SRD"
-        df["Fonte"] = df["Fonte"].astype("string", copy=False)
+        df["Fonte"] = df["Fonte"].astype("string")
 
         df["Designação_Emissão"] = df.Serviço.fillna("").map(BW_MAP)
         df = Mosaico.split_designacao(df)
 
         df["Multiplicidade"] = "1"
-        df["Multiplicidade"] = df["Multiplicidade"].astype("string", copy=False)
+        df["Multiplicidade"] = df["Multiplicidade"].astype("string")
 
         df["Padrão_Antena(dBd)"] = df["Padrão_Antena(dBd)"].str.replace("None", "0")
         df["Potência_Transmissor(W)"] = pd.to_numeric(
@@ -149,11 +151,11 @@ class SRD(Mosaico):
         df["Potência_Transmissor(W)"] = (
             df["Potência_Transmissor(W)"]
             .apply(lambda x: float(Decimal(1000) * Decimal(x)))
-            .astype("string", copy=False)
+            .astype("string")
         )
 
         df["Relatório_Canal"] = df.apply(
             lambda row: RELATORIO_SRD.format(row.loc["Id"], row.loc["Status"]), axis=1
-        ).astype("string", copy=False)
+        ).astype("string")
 
         return df.loc[:, self.columns]
