@@ -294,6 +294,7 @@ DICT_LICENCIAMENTO = {
     "Latitude": "Latitude",
     "Longitude": "Longitude",
     "DesignacaoEmissao": "Designação_Emissão",
+    "state": "Status"
     # 'PotenciaTransmissorWatts': 'Potência_Transmissor(W)',
     # 'CodTipoAntena': 'Cod_Tipo_Antena',
     # 'Polarizacao': 'Polarização_Antena',
@@ -323,7 +324,7 @@ PROJECTION_LICENCIAMENTO = {
   "Latitude": 1.0,
   "Longitude": 1.0,
   "DesignacaoEmissao": 1.0,
-  "Status": "$Status.state",
+  "state": "$Status.state",
 
 }
 

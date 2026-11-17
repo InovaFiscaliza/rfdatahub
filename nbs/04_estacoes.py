@@ -251,7 +251,7 @@ def _(
 
 @app.cell
 def _(Estacoes):
-    data = Estacoes(read_cache=True, reprocess_sources=True)
+    data = Estacoes(read_cache=True)
     return (data,)
 
 
@@ -296,7 +296,7 @@ def _(g):
 @app.cell
 def _(g):
     c = g.df['Código_Município'].isna()
-    g.df[c]
+    g.df.loc[c, "Fonte"].value_counts()
     return
 
 
@@ -314,25 +314,44 @@ def _(g):
 
 @app.cell
 def _(g):
-    g.df[g.log['empty_code']]
+    g.df.loc[g.log['empty_code'], "Fonte"].value_counts()
     return
 
 
 @app.cell
 def _(g):
-    g.df[g.log["empty_coords"]]
+    g.df.loc[g.log['empty_coords'], "Fonte"].value_counts()
     return
 
 
 @app.cell
 def _(g):
-    g.df[g.log["invalid_code"]]
+    g.df[g.log['coords_not_numeric']]
+    return
+
+
+@app.cell
+def _(g):
+    g.df[g.log['code_not_numeric']]
     return
 
 
 @app.cell
 def _(g):
     g.df.isna().sum()
+    return
+
+
+@app.cell
+def _(g):
+    g.df.sample(10)
+    return
+
+
+@app.cell
+def _(g):
+    d = g.df.Município.str.lower() != g.df.Município_IBGE.str.lower()
+    g.df[d]
     return
 
 
