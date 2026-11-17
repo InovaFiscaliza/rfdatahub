@@ -152,72 +152,72 @@ class Geography:
             # Use of row_filter instead of rows to avoid float comparison
             self.df.loc[row_filter, original] = self.df.loc[row_filter, column]
 
-    def replace_bad_city_codes(self):
-        """Tries to fix the wrong city codes by looking at the normalized city names"""
-        import re
-        import unicodedata
+    # def replace_bad_city_codes(self):
+    #     """Tries to fix the wrong city codes by looking at the normalized city names"""
+    #     import re
+    #     import unicodedata
 
-        def remove_punctuation(word):
-            # Unicode normalize transforma um caracter em seu equivalente em latin.
-            nfkd = unicodedata.normalize("NFKD", word.lower())
-            decoded_word = "".join(c for c in nfkd if not unicodedata.combining(c))
+    #     def remove_punctuation(word):
+    #         # Unicode normalize transforma um caracter em seu equivalente em latin.
+    #         nfkd = unicodedata.normalize("NFKD", word.lower())
+    #         decoded_word = "".join(c for c in nfkd if not unicodedata.combining(c))
 
-            return re.sub(r"[^a-zA-Z0-9 ]", "", decoded_word)
+    #         return re.sub(r"[^a-zA-Z0-9 ]", "", decoded_word)
 
-        municipios = pd.read_csv(
-            self.ibge,
-            usecols=["Código_Município", "Município", "UF"],
-            dtype="string",
-            dtype_backend="numpy_nullable",
-        )
+    #     municipios = pd.read_csv(
+    #         self.ibge,
+    #         usecols=["Código_Município", "Município", "UF"],
+    #         dtype="string",
+    #         dtype_backend="numpy_nullable",
+    #     )
 
-        municipios["Município_ASCII"] = municipios["Município"].apply(
-            remove_punctuation
-        )
+    #     municipios["Município_ASCII"] = municipios["Município"].apply(
+    #         remove_punctuation
+    #     )
 
-        self.df["Município"] = self.df["Município"].astype("string")
-        self.df["Município_ASCII"] = (
-            self.df["Município"].fillna("").apply(remove_punctuation)
-        )
+    #     self.df["Município"] = self.df["Município"].astype("string")
+    #     self.df["Município_ASCII"] = (
+    #         self.df["Município"].fillna("").apply(remove_punctuation)
+    #     )
 
-        self.df = pd.merge(
-            self.df,
-            municipios,
-            on=["Município_ASCII", "UF"],
-            how="left",
-            copy=False,
-        )
+    #     self.df = pd.merge(
+    #         self.df,
+    #         municipios,
+    #         on=["Município_ASCII", "UF"],
+    #         how="left",
+    #         copy=False,
+    #     )
 
-        self.df.rename(
-            columns={
-                "Município_x": "Município",
-                "Código_Município_x": "Código_Município",
-            },
-            inplace=True,
-        )
+    #     self.df.rename(
+    #         columns={
+    #             "Município_x": "Município",
+    #             "Código_Município_x": "Código_Município",
+    #         },
+    #         inplace=True,
+    #     )
 
-        bad_codes = ~self.log["empty_code"]
-        bad_codes &= ~self.log["code_not_numeric"]
-        bad_codes &= self.df["Município_IBGE"].isna()
-        self.log.update({"invalid_code": bad_codes})
+    #     bad_codes = ~self.log["empty_code"]
+    #     bad_codes &= ~self.log["code_not_numeric"]
+    #     bad_codes &= self.df["Município_IBGE"].isna()
+    #     self.log.update({"invalid_code": bad_codes})
 
-        # processing = 'Código do Município não consta no IBGE.'
-        # processing += '\nMunicípio normalizado e UF serão usados como chave para validação.'
-        # Base.register_log(self.df, processing, 'Código_Município', bad_codes)
-        columns = ["Município_y", "Código_Município_y"]
-        originals = ["Município", "Código_Município"]
-        log = "Código do Município não consta no IBGE."
-        # TODO: Verify if there isn't a wrong Município match, given Município is not unique
-        self._replace_columns(columns, originals, log, bad_codes)
+    #     # processing = 'Código do Município não consta no IBGE.'
+    #     # processing += '\nMunicípio normalizado e UF serão usados como chave para validação.'
+    #     # Base.register_log(self.df, processing, 'Código_Município', bad_codes)
+    #     columns = ["Município_y", "Código_Município_y"]
+    #     originals = ["Município", "Código_Município"]
+    #     log = "Código do Município não consta no IBGE."
+    #     # TODO: Verify if there isn't a wrong Município match, given Município is not unique
+    #     self._replace_columns(columns, originals, log, bad_codes)
 
-        self.df.drop(
-            columns=["Município_y", "Município_ASCII", "Código_Município_y"],
-            inplace=True,
-        )
+    #     self.df.drop(
+    #         columns=["Município_y", "Município_ASCII", "Código_Município_y"],
+    #         inplace=True,
+    #     )
 
-        self.df[["Município", "Código_Município"]] = self.df[
-            ["Município", "Código_Município"]
-        ].astype("string")
+    #     self.df[["Município", "Código_Município"]] = self.df[
+    #         ["Município", "Código_Município"]
+    #     ].astype("string")
 
     def merge_df_with_ibge(self):
         """It merges the instance df with the IBGE dfs based on `Código_Município`
