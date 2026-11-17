@@ -10,6 +10,7 @@ __all__ = ['LINK_VOR', 'LINK_DME', 'LINK_NDB', 'COLS_VOR', 'COLS_NDB', 'COLS_DME
 
 # %% ../../nbs/02c_aisgeo.ipynb #967dc7cc
 import json
+from pathlib import Path
 from typing import List
 from urllib.request import urlopen
 
@@ -20,9 +21,12 @@ from extracao.constants import VOR_ILS_DME
 load_dotenv(find_dotenv(), override=True)
 
 # %% ../../nbs/02c_aisgeo.ipynb #ccdcef48
-LINK_VOR = "https://geoaisweb.decea.mil.br/geoserver/ICA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=ICA:vor&outputFormat=application%2Fjson"
-LINK_DME = "https://geoaisweb.decea.mil.br/geoserver/ICA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=ICA:dme&outputFormat=application%2Fjson"
-LINK_NDB = "https://geoaisweb.decea.mil.br/geoserver/ICA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=ICA:ndb&outputFormat=application%2Fjson"
+# LINK_VOR = "https://geoaisweb.decea.mil.br/geoserver/ICA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=ICA:vor&outputFormat=application%2Fjson"
+# LINK_DME = "https://geoaisweb.decea.mil.br/geoserver/ICA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=ICA:dme&outputFormat=application%2Fjson"
+# LINK_NDB = "https://geoaisweb.decea.mil.br/geoserver/ICA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=ICA:ndb&outputFormat=application%2Fjson"
+LINK_VOR = Path(__file__).parent / "arquivos" / "LINK_VOR.json"
+LINK_DME = Path(__file__).parent / "arquivos" / "LINK_DME.json"
+LINK_NDB = Path(__file__).parent / "arquivos" / "LINK_NDB.json"
 COLS_VOR = (
     "properties.frequency",
     "properties.frequnits",
@@ -122,15 +126,17 @@ def get_geodf(
 ):  # DataFrame com frequências, coordenadas e descrição das estações VOR
     # sourcery skip: use-fstring-for-concatenation
     """Faz a requisição do `link`, processa o json e o retorna como Dataframe"""
-    response = urlopen(link)
-    if (
-        response.status != 200
-        or "application/json" not in response.headers["content-type"]
-    ):
-        raise ValueError(
-            f"Resposta a requisição não foi bem sucedida: {response.status=}"
-        )
-    data_json = json.loads(response.read())
+    # response = urlopen(link)
+    # if (
+    #     response.status != 200
+    #     or "application/json" not in response.headers["content-type"]
+    # ):
+    #     raise ValueError(
+    #         f"Resposta a requisição não foi bem sucedida: {response.status=}"
+    #     )
+    # data_json = json.loads(response.read())
+    with open(link, "r", encoding="utf-8") as f:
+        data_json = json.load(f)
     df = pd.json_normalize(
         data_json["features"],
     ).filter(cols, axis=1)
