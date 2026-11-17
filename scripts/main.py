@@ -87,46 +87,46 @@ def get_db(
 	# )
 
 	# Delete the 'rfdatahub' release and cleanup the tag
-	subprocess.run(
-		[
-			'gh',
-			'release',
-			'delete',
-			'rfdatahub',
-			'--cleanup-tag',
-			'-R',
-			'InovaFiscaliza/.github',
-			'-y',
-		],
-		check=False,
-	)
+	# subprocess.run(
+	# 	[
+	# 		'gh',
+	# 		'release',
+	# 		'delete',
+	# 		'rfdatahub',
+	# 		'--cleanup-tag',
+	# 		'-R',
+	# 		'InovaFiscaliza/.github',
+	# 		'-y',
+	# 	],
+	# 	check=False,
+	# )
 
-	# Create a new 'rfdatahub' release with specific title, notes, and files
-	subprocess.run(
-		[
-			'gh',
-			'release',
-			'create',
-			'rfdatahub',
-			'-t',
-			'RFDataHub',
-			'--notes',
-			new_version,
-			'.\\extracao\\datasources\\arquivos\\saida\\estacoes.parquet',
-			'.\\extracao\\datasources\\arquivos\\saida\\log.parquet',
-			'.\\extracao\\datasources\\arquivos\\saida\\smp.parquet',
-			'.\\extracao\\datasources\\arquivos\\saida\\smp_raw.parquet',
-			'.\\extracao\\datasources\\arquivos\\saida\\srd.parquet',
-			'.\\extracao\\datasources\\arquivos\\saida\\srd_raw.parquet',
-			'.\\extracao\\datasources\\arquivos\\saida\\telecom.parquet',
-			'.\\extracao\\datasources\\arquivos\\saida\\telecom_raw.parquet',
-			'.\\extracao\\datasources\\arquivos\\saida\\aero.parquet',
-			'.\\extracao\\datasources\\arquivos\\saida\\Release.json',
-			'-R',
-			'InovaFiscaliza/.github',
-		],
-		check=False,
-	)
+	# # Create a new 'rfdatahub' release with specific title, notes, and files
+	# subprocess.run(
+	# 	[
+	# 		'gh',
+	# 		'release',
+	# 		'create',
+	# 		'rfdatahub',
+	# 		'-t',
+	# 		'RFDataHub',
+	# 		'--notes',
+	# 		new_version,
+	# 		'.\\extracao\\datasources\\arquivos\\saida\\estacoes.parquet',
+	# 		'.\\extracao\\datasources\\arquivos\\saida\\log.parquet',
+	# 		'.\\extracao\\datasources\\arquivos\\saida\\smp.parquet',
+	# 		'.\\extracao\\datasources\\arquivos\\saida\\smp_raw.parquet',
+	# 		'.\\extracao\\datasources\\arquivos\\saida\\srd.parquet',
+	# 		'.\\extracao\\datasources\\arquivos\\saida\\srd_raw.parquet',
+	# 		'.\\extracao\\datasources\\arquivos\\saida\\telecom.parquet',
+	# 		'.\\extracao\\datasources\\arquivos\\saida\\telecom_raw.parquet',
+	# 		'.\\extracao\\datasources\\arquivos\\saida\\aero.parquet',
+	# 		'.\\extracao\\datasources\\arquivos\\saida\\Release.json',
+	# 		'-R',
+	# 		'InovaFiscaliza/.github',
+	# 	],
+	# 	check=False,
+	# )
 
 	print(f'Elapsed time: {time.perf_counter() - start} seconds')
 

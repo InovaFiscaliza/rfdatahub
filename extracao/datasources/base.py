@@ -136,7 +136,7 @@ class Base:
         log = listify(eval(row.loc["Log"]))
         new_log = {"Processamento": processing}
         if column is not None:
-            new_log.update({f"{column}_Original": row.loc[column]})
+            new_log.update({"Coluna": column, "Original": row.loc[column]})
         log.append(new_log)
         return json.dumps(log, ensure_ascii=False)
 
