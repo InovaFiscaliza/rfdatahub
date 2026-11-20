@@ -72,7 +72,7 @@ def get_db(
 				check=False,
 			)
 
-	Create a release with the version tag and generate release notes
+	# Create a release with the version tag and generate release notes
 	subprocess.run(
 		[
 			'gh',
@@ -86,7 +86,7 @@ def get_db(
 		check=False,
 	)
 
-	Delete the 'rfdatahub' release and cleanup the tag
+	# Delete the 'rfdatahub' release and cleanup the tag
 	subprocess.run(
 		[
 			'gh',
