@@ -105,7 +105,7 @@ class Base:
         """Register a log in the dataframe"""
         if row_filter is None:
             row_filter = pd.Series(True, index=df.index)
-        elif not row_filter.any():
+        if not row_filter.any():
             return df
         if "Log" not in df:
             df["Log"] = "[]"

@@ -11,6 +11,7 @@ __all__ = ['MAX_DIST', 'LIMIT_FREQ', 'parse_bw', 'get_km_distance', 'merge_on_fr
 # %% ../nbs/00b_format.ipynb #845cf246
 import re
 import json
+from ast import literal_eval
 from typing import Tuple
 from collections import defaultdict
 
@@ -305,45 +306,30 @@ def format_types(df):
 
 
 def merge_dicts(json_log: str):
-    """
-    Mescla dicionários em uma lista com base no valor da chave "Processamento".
-
-    Argumentos:
-      list_of_dicts: Uma lista contendo dicionários com as mesmas chaves.
-
-    Retorno:
-      Um dicionário com os dicionários mesclados.
-    """
+    """Mescla registros de log por processamento e coluna."""
 
     if not (list_of_dicts := [i for i in json.loads(json_log) if i != "[]"]):
         return "[]"
     merged_dict = defaultdict(list)
     for item in list_of_dicts:
-        processamento = item["Processamento"]
-        merged_dict[processamento].append(item)
-
-    for key, value in merged_dict.items():
-        if len(value) == 1:
-            merged_dict[key] = value[0]
-        else:
-            merged_dict[key] = _merge_sub_dicts(value)
-
-    output_list = []
-
-    for log_dict in merged_dict.values():
-        if log_dict.get("Coluna") == "#Estação":
-            if value := log_dict.get("Original"):
-                value = eval(value)
+        column = item.get("Coluna")
+        if column == "#Estação":
+            if original := item.get("Original"):
+                value = literal_eval(original)
                 if isinstance(value, list):
-                    log_dict["Original"] = str(sorted(list(set(value))))
-                output_list.append(log_dict)
+                    item["Original"] = str(sorted(set(value)))
+        merged_dict[item["Processamento"], column].append(item)
 
+    output_list = [
+        entries[0] if len(entries) == 1 else _merge_sub_dicts(entries)
+        for entries in merged_dict.values()
+    ]
     return json.dumps(output_list, ensure_ascii=False)
 
 
 def _merge_sub_dicts(list_of_sub_dicts):
     """
-    Mescla dicionários que possuem a mesma chave "Processamento".
+    Mescla dicionários com o mesmo processamento e coluna.
 
     Argumentos:
       list_of_sub_dicts: Uma lista contendo dicionários com a mesma chave "Processamento".
@@ -353,7 +339,7 @@ def _merge_sub_dicts(list_of_sub_dicts):
     """
     merged_dict = {}
     for key in list_of_sub_dicts[0].keys():
-        if key == "Processamento":
+        if key in ("Processamento", "Coluna"):
             merged_dict[key] = list_of_sub_dicts[0][key]
         else:
             merged_dict[key] = [sub_dict[key] for sub_dict in list_of_sub_dicts]
