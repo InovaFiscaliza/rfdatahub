@@ -12,7 +12,6 @@ __all__ = ['LINK_VOR', 'LINK_DME', 'LINK_NDB', 'COLS_VOR', 'COLS_NDB', 'COLS_DME
 import json
 from pathlib import Path
 from typing import List
-from urllib.request import urlopen
 
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
