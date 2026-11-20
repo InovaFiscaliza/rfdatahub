@@ -115,7 +115,7 @@ class Geography:
             self.df[f"#{column}"] = self.df[column]
             self.df[column] = pd.to_numeric(self.df[column], errors="coerce").astype(
                 "float"
-            )  # type: ignore
+            )
             bad_coords = ~self.log["empty_coords"]
             bad_coords &= self.df[column].isna()
             if not bad_coords.empty:
