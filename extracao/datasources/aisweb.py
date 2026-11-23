@@ -26,7 +26,7 @@ load_dotenv(find_dotenv(), override=True)
 
 # %% ../../nbs/02b_aisweb.ipynb #fbbf3e1e
 SIGLA_AERO = ["MIL", "PRIV/PUB", "PUB", "PUB/MIL", "PUB/REST"]
-URL = "http://aisweb.decea.gov.br/api/?apiKey={}&apiPass={}&area=rotaer&rowend=10000"
+URL = "http://aisweb.decea.mil.br/api/?apiKey={}&apiPass={}&area=rotaer&rowend=10000"
 TYPE = ["COM", "NAV"]
 COLUMNS = ["Frequência", "Latitude", "Longitude", "Entidade", "Fonte"]
 UNIQUE_COLS = ["Frequência", "Latitude", "Longitude"]
