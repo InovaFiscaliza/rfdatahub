@@ -1,0 +1,56 @@
+# Global Configuration for use with mise. Full Dev Container Setup. Put os symlink to ~/.config/mise/config.toml
+[bootstrap.services.mise-tool-update]
+builtin = "tool-update"
+
+[tools]
+# Sheel tools
+jq = { version = "latest", auto_update = true } # JSON Preview
+7zip = { version = "latest", auto_update = true } # Archive extraction and preview
+poppler = { version = "latest", auto_update = true } # PDF Preview 
+clipboard = "latest"
+fd = { version = "latest", auto_update = true } # File Searching
+fzf = { version = "latest", auto_update = true } # Quick File Subtree Navigation
+zoxide = { version = "latest", auto_update = true } # for historical directories navigation, requires fzf
+resvg = { version = "latest", auto_update = true } # SVG Preview
+imagemagick = { version = "latest", auto_update = true } # for Font, HEIC, and JPEG XL preview
+btop = { version = "latest", auto_update = true } 
+ripgrep = { version = "latest", auto_update = true } 
+ripgrep-all = { version = "latest", auto_update = true }
+ffmpeg = { version = "latest", auto_update = true } 
+bat = { version = "latest", auto_update = true } 
+yazi = { version = "latest", auto_update = true } 
+quarto-cli = {version = "latest", auto_update = true}
+
+# dev tools
+node = { version = "26", auto_update = true }
+uv = { version = "0.13.9", auto_update = true }
+pixi = { version = "latest", auto_update = true }
+rust = { version = "latest", auto_update = true }
+
+# devops
+kubectl = { version = "latest", auto_update = true }
+
+# editor
+neovim = { version = "latest", auto_update = true }
+
+# Coding Agents
+pi = { version = "1.6.0", auto_update = true }
+codex = { version = "latest", auto_update = true }
+copilot = { version = "1.0.114", auto_update = true }
+amp = { version = "0.0.1792166439-g8235ca", auto_update = true }
+herdr = { version = "latest", auto_update = true }
+[tasks.hello]
+run = "echo GITHUB_TOKEN | gh auth login --with-token"
+
+[tasks.lazyvim]
+run = "git clone https://github.com/LazyVim/starter ~/.config/nvim && rm -rf ~/.config/nvim/.git"
+
+[tasks.skills]
+depends = ["pocock", "caveman"]
+
+[tasks.pocock]
+run = "npx skills@latest add mattpocock/skills -g -y"
+
+[tasks.caveman]
+run = "npx @caveman-ai/cli@latest"
+
