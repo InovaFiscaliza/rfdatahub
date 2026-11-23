@@ -14,8 +14,8 @@ import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 from fastcore.foundation import GetAttr
 
-from .connectors import MongoDB
 from .base import Base
+from .connectors import MongoDB
 
 # %% ../../nbs/01d_mosaico.ipynb #4dde71d8
 load_dotenv(find_dotenv())

@@ -1,23 +1,20 @@
-from typing import Dict
+from __future__ import annotations
 
-from functools import cached_property
-import urllib.request
 import ssl
-
+import urllib.request
+from functools import cached_property
 from zipfile import ZipFile
 
-from dotenv import load_dotenv, find_dotenv
-
-from fastcore.xtras import Path
-from fastcore.foundation import L
-import pandas as pd
 import geopandas as gpd
-from tqdm.auto import tqdm
+import pandas as pd
+from dotenv import find_dotenv, load_dotenv
+from fastcore.foundation import L
+from fastcore.xtras import Path
 from rich import print as pp
+from tqdm.auto import tqdm
 
 from extracao.constants import IBGE_MUNICIPIOS, IBGE_POLIGONO, MALHA_IBGE
 from extracao.datasources.base import Base
-
 
 tqdm.pandas()
 
@@ -40,8 +37,8 @@ class Geography:
         self._initialize()
 
     def _initialize(self):
-        # self.log_empty_coords()
-        # self.log_empty_code()
+        self.log_empty_coords()
+        self.log_empty_code()
         self.drop_rows_without_location_info()
         self.validate_coordinates_as_number()
         self.validate_codigo_municipio_as_number()
@@ -77,29 +74,29 @@ class Geography:
             zip_file_path.unlink()
 
     @cached_property
-    def log(self) -> Dict[str, pd.Series]:
+    def log(self) -> dict[str, pd.Series]:
         """Check the coordinates and city code availability"""
         empty_coords = self.df.Latitude.isna() | self.df.Longitude.isna()
         empty_code = self.df.Código_Município.isna()
-        both = empty_coords & empty_code
-        left = empty_coords & (~empty_code)
-        right = (~empty_coords) & empty_code
-        return {"empty_coords": left, "empty_code": right, "both": both}
+        empty_coords = empty_coords & (~empty_code)
+        empty_code = empty_code & (~empty_coords)
+        no_location_info = empty_coords & empty_code
+        return {"empty_coords": empty_coords, "empty_code": empty_code, "no_location_info": no_location_info}
 
-    # def log_empty_coords(self):
-    #     """Log the rows with empty coordinates"""
-    #     self.log["empty_coords"]
-        # processing = 'Coordenadas nulas.'
-        # Base.register_log(self.df, processing, row_filter=rows)
+    def log_empty_coords(self):
+        """Log the rows with empty coordinates"""
+        rows = self.log["empty_coords"]
+        processing = 'Coordenadas nulas.'
+        Base.register_log(self.df, processing, row_filter=rows)
 
-    # def log_empty_code(self):
-    #     """Log the rows with empty city code"""
-    #     self.log["empty_code"]
-        # processing = 'Código do Município nulo.'
-        # Base.register_log(self.df, processing, row_filter=rows)
+    def log_empty_code(self):
+        """Log the rows with empty city code"""
+        rows = self.log["empty_code"]
+        processing = 'Código do Município nulo.'
+        Base.register_log(self.df, processing, row_filter=rows)
 
     def drop_rows_without_location_info(self) -> None:
-        rows = self.log["both"]
+        rows = self.log["no_location_info"]
         processing = 'Coordenadas e Código do Município nulos. Registro descartado'
         # # TODO: append to discarded
         Base.register_log(self.df, processing, row_filter=rows)
@@ -118,10 +115,9 @@ class Geography:
             )
             bad_coords = ~self.log["empty_coords"]
             bad_coords &= self.df[column].isna()
-            if not bad_coords.empty:
-                self.log.update({"coords_not_numeric": bad_coords})
-                Base.register_log(self.df, f"Valor Não Numérico {column}.", f"#{column}", bad_coords)
-                self.df.drop(columns=[f"#{column}"], inplace=True)
+            self.log.update({"coords_not_numeric": bad_coords})
+            Base.register_log(self.df, f"Valor Não Numérico Descartado: {column}.", f"#{column}", bad_coords)
+            self.df.drop(columns=[f"#{column}"], inplace=True)
 
     def validate_codigo_municipio_as_number(self) -> None:
         self.df["Código_Município"] = self.df["Código_Município"].astype(
@@ -133,10 +129,9 @@ class Geography:
         ).astype("string")
         bad_codes = ~self.log["empty_code"]
         bad_codes &= self.df["Código_Município"].isna()
-        if not bad_codes.empty:
-            self.log.update({"code_not_numeric": bad_codes})
-            Base.register_log(self.df, "Código Município Inválido.", "#Código_Município", bad_codes)
-            self.df.drop(columns=["#Código_Município"], inplace=True)
+        self.log.update({"code_not_numeric": bad_codes})
+        Base.register_log(self.df, "Valor Não Numérico Descartado: Código Município.", "#Código_Município", bad_codes)
+        self.df.drop(columns=["#Código_Município"], inplace=True)
 
     def _replace_columns(self, columns, originals, log, row_filter, float_cols=False):
         for column, original in zip(columns, originals):
@@ -180,13 +175,12 @@ class Geography:
     #         self.df["Município"].fillna("").apply(remove_punctuation)
     #     )
 
-    #     self.df = pd.merge(
-    #         self.df,
-    #         municipios,
-    #         on=["Município_ASCII", "UF"],
-    #         how="left",
-    #         copy=False,
-    #     )
+        self.df = pd.merge(
+            self.df,
+            municipios,
+            on=["Município_ASCII", "UF"],
+            how="left",
+        )
 
     #     self.df.rename(
     #         columns={
@@ -236,7 +230,6 @@ class Geography:
             municipios,
             on="Código_Município",
             how="left",
-            copy=False,
         ).astype("string")
 
         self.df.rename(

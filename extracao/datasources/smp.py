@@ -8,23 +8,24 @@ Docs: https://InovaFiscaliza.github.io/rfdatahub/smp.html.md"""
 __all__ = ['MONGO_URI', 'Smp']
 
 # %% ../../nbs/01g_smp.ipynb #b64918b8
-import os
 import gc
+import os
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 
 from extracao.constants import (
-	AGG_SMP,
-	CHANNELS, 
-	COLS_STEL,
-	DICT_LICENCIAMENTO,
-	MONGO_SMP,
-	PROJECTION_LICENCIAMENTO,
+    AGG_SMP,
+    CHANNELS,
+    COLS_STEL,
+    DICT_LICENCIAMENTO,
+    MONGO_SMP,
+    PROJECTION_LICENCIAMENTO,
 )
-from .mosaico import Mosaico
+
 from ..location import Geography
+from .mosaico import Mosaico
 
 # %% ../../nbs/01g_smp.ipynb #8d9145cb
 load_dotenv(find_dotenv())
