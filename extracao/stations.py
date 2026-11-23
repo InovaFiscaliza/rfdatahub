@@ -14,8 +14,6 @@ from fastcore.foundation import L
 from fastcore.parallel import parallel
 
 from .constants import COLS_SRD
-from .location import Geography
-
 from .datasources.aeronautica import Aero
 from .datasources.base import Base
 from .datasources.mosaico import MONGO_URI
@@ -23,7 +21,8 @@ from .datasources.sitarweb import SQLSERVER_PARAMS, Radcom, Stel
 from .datasources.smp import Smp
 from .datasources.srd import SRD
 from .datasources.telecom import Telecom
-from .format import LIMIT_FREQ, merge_on_frequency, merge_dicts
+from .format import LIMIT_FREQ, merge_dicts, merge_on_frequency
+from .location import Geography
 
 # %% ../nbs/04_estacoes.ipynb #8fd5dfd9
 load_dotenv(find_dotenv(), override=True)

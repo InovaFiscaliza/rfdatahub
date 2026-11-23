@@ -1,23 +1,20 @@
-from typing import Dict
+from __future__ import annotations
 
-from functools import cached_property
-import urllib.request
 import ssl
-
+import urllib.request
+from functools import cached_property
 from zipfile import ZipFile
 
-from dotenv import load_dotenv, find_dotenv
-
-from fastcore.xtras import Path
-from fastcore.foundation import L
-import pandas as pd
 import geopandas as gpd
-from tqdm.auto import tqdm
+import pandas as pd
+from dotenv import find_dotenv, load_dotenv
+from fastcore.foundation import L
+from fastcore.xtras import Path
 from rich import print as pp
+from tqdm.auto import tqdm
 
 from extracao.constants import IBGE_MUNICIPIOS, IBGE_POLIGONO, MALHA_IBGE
 from extracao.datasources.base import Base
-
 
 tqdm.pandas()
 
@@ -77,7 +74,7 @@ class Geography:
             zip_file_path.unlink()
 
     @cached_property
-    def log(self) -> Dict[str, pd.Series]:
+    def log(self) -> dict[str, pd.Series]:
         """Check the coordinates and city code availability"""
         empty_coords = self.df.Latitude.isna() | self.df.Longitude.isna()
         empty_code = self.df.Código_Município.isna()
@@ -185,7 +182,6 @@ class Geography:
             municipios,
             on=["Município_ASCII", "UF"],
             how="left",
-            copy=False,
         )
 
         self.df.rename(
@@ -236,7 +232,6 @@ class Geography:
             municipios,
             on="Código_Município",
             how="left",
-            copy=False,
         ).astype("string")
 
         self.df.rename(
