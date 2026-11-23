@@ -40,8 +40,8 @@ class Geography:
         self._initialize()
 
     def _initialize(self):
-        # self.log_empty_coords()
-        # self.log_empty_code()
+        self.log_empty_coords()
+        self.log_empty_code()
         self.drop_rows_without_location_info()
         self.validate_coordinates_as_number()
         self.validate_codigo_municipio_as_number()
@@ -81,25 +81,25 @@ class Geography:
         """Check the coordinates and city code availability"""
         empty_coords = self.df.Latitude.isna() | self.df.Longitude.isna()
         empty_code = self.df.Código_Município.isna()
-        both = empty_coords & empty_code
-        left = empty_coords & (~empty_code)
-        right = (~empty_coords) & empty_code
-        return {"empty_coords": left, "empty_code": right, "both": both}
+        empty_coords = empty_coords & (~empty_code)
+        empty_code = empty_code & (~empty_coords)
+        no_location_info = empty_coords & empty_code
+        return {"empty_coords": empty_coords, "empty_code": empty_code, "no_location_info": no_location_info}
 
-    # def log_empty_coords(self):
-    #     """Log the rows with empty coordinates"""
-    #     self.log["empty_coords"]
-        # processing = 'Coordenadas nulas.'
-        # Base.register_log(self.df, processing, row_filter=rows)
+    def log_empty_coords(self):
+        """Log the rows with empty coordinates"""
+        rows = self.log["empty_coords"]
+        processing = 'Coordenadas nulas.'
+        Base.register_log(self.df, processing, row_filter=rows)
 
-    # def log_empty_code(self):
-    #     """Log the rows with empty city code"""
-    #     self.log["empty_code"]
-        # processing = 'Código do Município nulo.'
-        # Base.register_log(self.df, processing, row_filter=rows)
+    def log_empty_code(self):
+        """Log the rows with empty city code"""
+        rows = self.log["empty_code"]
+        processing = 'Código do Município nulo.'
+        Base.register_log(self.df, processing, row_filter=rows)
 
     def drop_rows_without_location_info(self) -> None:
-        rows = self.log["both"]
+        rows = self.log["no_location_info"]
         processing = 'Coordenadas e Código do Município nulos. Registro descartado'
         # # TODO: append to discarded
         Base.register_log(self.df, processing, row_filter=rows)
@@ -118,7 +118,7 @@ class Geography:
             bad_coords = ~self.log["empty_coords"]
             bad_coords &= self.df[column].isna()
             self.log.update({"coords_not_numeric": bad_coords})
-            Base.register_log(self.df, f"Valor Não Numérico {column}.", f"#{column}", bad_coords)
+            Base.register_log(self.df, f"Valor Não Numérico Descartado: {column}.", f"#{column}", bad_coords)
             self.df.drop(columns=[f"#{column}"], inplace=True)
 
     def validate_codigo_municipio_as_number(self) -> None:
@@ -135,7 +135,7 @@ class Geography:
         bad_codes = ~self.log["empty_code"]
         bad_codes &= self.df["Código_Município"].isna()
         self.log.update({"code_not_numeric": bad_codes})
-        Base.register_log(self.df, "Código Município Inválido.", "#Código_Município", bad_codes)
+        Base.register_log(self.df, "Valor Não Numérico Descartado: Código Município.", "#Código_Município", bad_codes)
         self.df.drop(columns=["#Código_Município"], inplace=True)
 
     def _replace_columns(self, columns, originals, log, row_filter, float_cols=False):
