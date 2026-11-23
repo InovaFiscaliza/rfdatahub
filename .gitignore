@@ -168,3 +168,4 @@ index_files/
 sidebar.yml
 extracao/datasources/arquivos/BR_Municipios_2025/LEIA-ME.txt
 extracao/datasources/arquivos/BR_Municipios_2025/BR_Municipios_2025.qmd
+.devcontainer/devcontainer.env

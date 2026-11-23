@@ -1,0 +1,96 @@
+{
+    "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
+    "name": "mise-devcontainer-archlinux-${localWorkspaceFolderBasename}",
+    "image": "ghcr.io/mkvlrn/mise-devcontainer-archlinux:current@sha256:07718363a855fbbfef6128691eb925ed2bde8ab507db0ddf66405198df2512d2",
+    "containerUser": "root",
+    "remoteUser": "dev",
+    "privileged": true,
+    "updateRemoteUserUID": true,
+    "workspaceFolder": "/code/${localWorkspaceFolderBasename}",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/code/${localWorkspaceFolderBasename},type=bind",
+    "mounts": [
+        "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind",
+        "source=${localWorkspaceFolderBasename}-docker-data,target=/var/lib/docker,type=volume"
+    ],
+    // Additional run arguments for the container for the Anatel VM
+    "overrideCommand": false,
+    "onCreateCommand": [
+        "sudo",
+        "-n",
+        "/bin/sh",
+        "${containerWorkspaceFolder}/.devcontainer/group-config.sh"
+    ],
+    "postCreateCommand": {
+        "lazyvim": "git clone https://github.com/LazyVim/starter ~/.config/nvim && rm -rf ~/.config/nvim/.git",
+        "postCreate": [
+            "/usr/bin/fish",
+            "-l",
+            "-c",
+            "/usr/local/bin/post-create.sh"
+        ],
+        "glibc": "sudo pacman -Syu --noconfirm glibc"
+    },
+    "postStartCommand": {
+        "sshd": [
+            "sudo",
+            "-n",
+            "/bin/sh",
+            "${containerWorkspaceFolder}/.devcontainer/ssh-config.sh"
+        ],
+        "postStart": [
+            "/usr/bin/fish",
+            "-l",
+            "-c",
+            "/usr/local/bin/post-start.sh"
+        ],
+        "zerotier": [
+            "sudo",
+            "-n",
+            "/bin/sh",
+            "${containerWorkspaceFolder}/.devcontainer/zerotier.sh"
+        ]
+    },
+    "postAttachCommand": [
+        "/usr/bin/fish",
+        "-l",
+        "-c",
+        "/usr/local/bin/post-start.sh"
+    ],
+    "waitFor": "postStartCommand",
+    "containerEnv": {
+        "SSH_AUTH_SOCK": "/ssh-agent"
+    },
+    "runArgs": [
+        "--volume=${localWorkspaceFolder}/.pi:/home/dev/.pi",
+        "--volume=${localWorkspaceFolder}/.codex:/home/dev/.codex",
+        "--volume=${localWorkspaceFolder}/.gemini:/home/dev/.gemini",
+        "--volume=/dados:/assets/data:z",
+        "--volume=/data:/assets/monitoring:ro,z",
+        "--volume=/mnt/data:/assets/shared:ro,z",
+        "--env-file",
+        ".devcontainer/devcontainer.env"
+    ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-toolsai.jupyter",
+                "charliermarsh.ruff",
+                "tamasfe.even-better-toml",
+                "mutantdino.resourcemonitor",
+                "rokoroku.vscode-theme-darcula",
+                "deflateawning.flat-file-explorer",
+                "seatonjiang.gitmoji-vscode",
+                "github.vscode-github-actions",
+                "ms-kubernetes-tools.vscode-kubernetes-tools",
+                "rust-lang.rust-analyzer",
+                "github.vscode-pull-request-github",
+                "ms-azuretools.vscode-docker"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python"
+            }
+        }
+    }
+}
