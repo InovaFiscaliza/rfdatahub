@@ -264,6 +264,8 @@ class Geography:
     def normalize_location_names(self) -> None:
         rows = self.df["Latitude_IBGE"].notna()
         rows &= self.df["Longitude_IBGE"].notna()
+        rows &= self.df["Município_IBGE"].notna()
+        rows &= self.df["UF_IBGE"].notna()
         self.log.update({"city_normalized": rows})
         originals = ["Município", "UF"]
         columns = ["Município_IBGE", "UF_IBGE"]
@@ -277,6 +279,8 @@ class Geography:
         Returns a geopandas dataframe with additional columns `CD_MUN, NM_MUN, SIGLA_UF`
         """
         regions = gpd.read_file(self.shapefile)
+        if crs := getattr(regions, "crs", None):
+            crs = crs.to_string()
         # Convert pandas dataframe to geopandas df with geometry point given coordinates
         gdf_points = gpd.GeoDataFrame(
             self.df,
@@ -284,7 +288,7 @@ class Geography:
                 self.df.Longitude.astype("float").fillna(-1),
                 self.df.Latitude.astype("float").fillna(-1),
             ),
-            crs=regions.crs.to_string(),
+            crs=crs,
         )
         # Set the same coordinate reference system (CRS) as the regions shapefile
 
@@ -335,35 +339,35 @@ class Geography:
         log = "Coordenadas divergentes (Polígono do IBGE retorna município distinto). Coordenadas do Município do IBGE."
         self._replace_columns(columns, originals, log, wrong_city_coords, True)
 
-    def input_info_from_coords(self):
-        from geopy.geocoders import Nominatim
+    # def input_info_from_coords(self):
+    #     from geopy.geocoders import Nominatim
 
-        rows = self.df["Código_Município"].isna()
-        geolocator = Nominatim(user_agent="rfdatahub")
-        pbar = tqdm(self.df[rows].itertuples(), total=len(self.df[rows]))
-        pp(
-            "[bold green]Logging: [/bold green][italic]Requisitando API geocoders para locais fora do perímetro brasileiro."
-        )
-        for row in pbar:
-            pbar.set_description(
-                f"Requisitando: ({float(row.Latitude):.4f}, {float(row.Longitude):.4f})"
-            )
-            location = geolocator.reverse(
-                f"{row.Latitude}, {row.Longitude}", exactly_one=True, language="pt"
-            )
-            if location is None:
-                continue
-            address = location.raw["address"]
-            city = address.get("city", "")
-            state = address.get("state", "")
-            country = address.get("country", "")
-            if any([city, state, country]):
-                self.df.loc[row.Index, "Município"] = city
-                self.df.loc[row.Index, "UF"] = (
-                    f"{state}-{country}" if country != "Brasil" else state
-                )
+    #     rows = self.df["Código_Município"].isna()
+    #     geolocator = Nominatim(user_agent="rfdatahub")
+    #     pbar = tqdm(self.df[rows].itertuples(), total=len(self.df[rows]))
+    #     pp(
+    #         "[bold green]Logging: [/bold green][italic]Requisitando API geocoders para locais fora do perímetro brasileiro."
+    #     )
+    #     for row in pbar:
+    #         pbar.set_description(
+    #             f"Requisitando: ({float(row.Latitude):.4f}, {float(row.Longitude):.4f})"
+    #         )
+    #         location = geolocator.reverse(
+    #             f"{row.Latitude}, {row.Longitude}", exactly_one=True, language=True
+    #         )
+    #         if location is None:
+    #             continue
+    #         address = location.raw["address"]
+    #         city = address.get("city", "")
+    #         state = address.get("state", "")
+    #         country = address.get("country", "")
+    #         if any([city, state, country]):
+    #             self.df.loc[row.Index, "Município"] = city
+    #             self.df.loc[row.Index, "UF"] = (
+    #                 f"{state}-{country}" if country != "Brasil" else state
+    #             )
 
-        self.log.update({"city_state_country": rows})
+    #     self.log.update({"city_state_country": rows})
 
     def _append_filters(self):
         for column, row_filter in self.log.items():
