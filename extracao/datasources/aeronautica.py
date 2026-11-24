@@ -7,7 +7,7 @@ Docs: https://InovaFiscaliza.github.io/rfdatahub/aero.html.md"""
 # %% auto #0
 from __future__ import annotations
 
-__all__ = ['Aero']
+__all__ = ["Aero"]
 
 # %% ../../nbs/03_aero.ipynb #9da535cd
 
@@ -27,6 +27,7 @@ from .redemet import get_redemet
 # %% ../../nbs/03_aero.ipynb #914e9dd4
 load_dotenv(find_dotenv())
 
+
 # %% ../../nbs/03_aero.ipynb #de59bcad
 class Aero(Base):
     """Classe auxiliar para agregar os dados das APIs aeronáuticas"""
@@ -42,37 +43,39 @@ class Aero(Base):
     def extraction(self) -> pd.DataFrame:
         def func(f):
             return f()
+
         radares = pd.read_csv(Path(__file__).parent / "arquivos" / "radares.csv")
         radares["Fonte"] = "RADAR"
         sources = [get_icao, get_aisw, get_aisg, get_redemet]
         dfs = parallel(func, sources, threadpool=True, progress=False)
         dfs.append(radares)
-        return dfs
-
-    def _format(
-        self,
-        dfs: list,  # List with the individual API sources
-    ) -> pd.DataFrame:  # Processed DataFrame
         if dfs:
             icao = dfs.pop(0)
             for df in dfs:
                 icao = merge_on_frequency(icao, df)
-
-            icao = icao.sort_values(by=icao.columns.to_list(), ignore_index=True)
-            icao = icao.drop_duplicates(
-                subset=["Frequência", "Latitude", "Longitude"],
-                keep="last",
-                ignore_index=True,
-            )
-            icao = icao.astype(
-                {
-                    "Frequência": "float",
-                    "Latitude": "float",
-                    "Longitude": "float",
-                    "Entidade": "string",
-                }
-            )
-            icao.loc[np.isclose(icao.Longitude, -472.033447), "Longitude"] = -47.2033447
-            icao.loc[np.isclose(icao.Longitude, 69.934998), "Longitude"] = -69.934998
-            icao["Multiplicidade"] = 1
             return icao
+        return pd.DataFrame()
+
+    def _format(
+        self,
+        df: pd.DataFrame,  # List with the individual API sources
+    ) -> pd.DataFrame:  # Processed DataFrame
+
+        df = df.sort_values(by=df.columns.to_list(), ignore_index=True)
+        df = df.drop_duplicates(
+            subset=["Frequência", "Latitude", "Longitude"],
+            keep="last",
+            ignore_index=True,
+        )
+        df = df.astype(
+            {
+                "Frequência": "float",
+                "Latitude": "float",
+                "Longitude": "float",
+                "Entidade": "string",
+            }
+        )
+        df.loc[np.isclose(df.Longitude, -472.033447), "Longitude"] = -47.2033447
+        df.loc[np.isclose(df.Longitude, 69.934998), "Longitude"] = -69.934998
+        df["Multiplicidade"] = 1
+        return df

@@ -8,22 +8,23 @@ Docs: https://InovaFiscaliza.github.io/rfdatahub/format.html.md"""
 from __future__ import annotations
 
 __all__ = [
-    'LIMIT_FREQ',
-    'MAX_DIST',
-    'cast2cat',
-    'cast2float',
-    'cast2int',
-    'cast2str',
-    'format_types',
-    'get_km_distance',
-    'merge_dicts',
-    'merge_on_frequency',
-    'parse_bw',
+    "LIMIT_FREQ",
+    "MAX_DIST",
+    "cast2cat",
+    "cast2float",
+    "cast2int",
+    "cast2str",
+    "format_types",
+    "get_km_distance",
+    "merge_dicts",
+    "merge_on_frequency",
+    "parse_bw",
 ]
 
 # %% ../nbs/00b_format.ipynb #845cf246
 import json
 import re
+from ast import literal_eval
 from collections import defaultdict
 
 import pandas as pd
@@ -64,9 +65,11 @@ def parse_bw(
         return str(multiplier * number), str(classe)
     return pd.NA, pd.NA
 
+
 # %% ../nbs/00b_format.ipynb #258a372e
 def get_km_distance(row):
-	return geodesic((row.iloc[0], row.iloc[1]), (row.iloc[2], row.iloc[3])).km
+    return geodesic((row.iloc[0], row.iloc[1]), (row.iloc[2], row.iloc[3])).km
+
 
 # %% ../nbs/00b_format.ipynb #aea2e7de
 def merge_on_frequency(
@@ -261,12 +264,9 @@ def merge_on_frequency(
     ).astype("string")
 
 
-
 # %% ../nbs/00b_format.ipynb #2ccd9eb6
 def _left_filter(df, df_close_merge, merge_cols):
-    df = pd.merge(
-        df, df_close_merge, how="left", on=merge_cols, indicator=True
-    )
+    df = pd.merge(df, df_close_merge, how="left", on=merge_cols, indicator=True)
     df = df.loc[df["_merge"] == "left_only"]
     return df.drop(["_merge", "Distance_y"], axis=1).rename(
         columns={"Distance_x": "Distance"}
@@ -322,12 +322,11 @@ def merge_dicts(json_log: str):
     merged_dict = defaultdict(list)
     for item in list_of_dicts:
         column = item.get("Coluna")
-        if column == "#Estação":
-            if original := item.get("Original"):
-                value = literal_eval(original)
-                if isinstance(value, list):
-                    log_dict["Original"] = str(sorted(set(value)))
-                output_list.append(log_dict)
+        if column == "#Estação" and (original := item.get("Original")):
+            value = literal_eval(original)
+            if isinstance(value, list):
+                item["Original"] = str(sorted(set(value)))
+        merged_dict[item["Processamento"], column].append(item)
 
     output_list = [
         entries[0] if len(entries) == 1 else _merge_sub_dicts(entries)
@@ -354,4 +353,3 @@ def _merge_sub_dicts(list_of_sub_dicts):
             merged_dict[key] = [sub_dict[key] for sub_dict in list_of_sub_dicts]
 
     return merged_dict
-

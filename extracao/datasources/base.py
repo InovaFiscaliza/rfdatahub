@@ -7,7 +7,7 @@ Docs: https://InovaFiscaliza.github.io/rfdatahub/base.html.md"""
 # %% auto #0
 from __future__ import annotations
 
-__all__ = ['Base']
+__all__ = ["Base"]
 
 # %% ../../nbs/01b_base.ipynb #6e65735e
 import json
@@ -30,6 +30,7 @@ load_dotenv(find_dotenv(), override=True)
 tqdm.pandas()
 pd.options.mode.copy_on_write = True
 
+
 # %% ../../nbs/01b_base.ipynb #1f3fb56e
 @dataclass
 class Base:
@@ -40,15 +41,11 @@ class Base:
         """Lê o dataframe formado por self.folder / self.stem.parquet"""
         file = Path(f"{self.folder}/{stem}.parquet")
         try:
-            return pd.read_parquet(file, dtype_backend=backend).astype(
-                "string"
-            )
+            return pd.read_parquet(file, dtype_backend=backend).astype("string")
         except (ArrowInvalid, FileNotFoundError) as e:
             raise ValueError(f"Error when reading {file}") from e
 
-    def _save(
-        self, df: pd.DataFrame, folder: str | Path, stem: str
-    ) -> pd.DataFrame:
+    def _save(self, df: pd.DataFrame, folder: str | Path, stem: str) -> pd.DataFrame:
         """Format, Save and return a dataframe"""
         folder = Path(folder)
         folder.mkdir(parents=True, exist_ok=True)
@@ -117,9 +114,7 @@ class Base:
         log_function = partial(Base.format_log, processing=processing, column=column)
         if column is not None:
             df_logged = df.loc[row_filter, ["Log", column]].copy()
-            df_logged[column] = (
-                df_logged[column].astype("string").fillna("")
-            )
+            df_logged[column] = df_logged[column].astype("string").fillna("")
         else:
             df_logged = df.loc[row_filter, ["Log"]]
         df.loc[row_filter, "Log"] = df_logged.progress_apply(log_function, axis=1)
@@ -170,12 +165,15 @@ class Base:
     def update(self):
         df = self.extraction()
         if not self.read_cache:
-            self._save(df.drop("Log", axis=1), self.folder, f"{self.stem}_raw")
+            if "Log" in df:
+                df_raw = df.drop("Log", axis=1)
+            else:
+                df_raw = df
+            self._save(df_raw, self.folder, f"{self.stem}_raw")
         self.df = self._format(df)
 
     def save(self, folder: str | Path | None = None):
         if folder is None:
             folder = self.folder
         self._save(self.df, folder, self.stem)
-        self._save(self.discarded, folder, f'{self.stem}_discarded')
-
+        self._save(self.discarded, folder, f"{self.stem}_discarded")
