@@ -6,7 +6,9 @@ from functools import cached_property
 from zipfile import ZipFile
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
+import shapely
 from dotenv import find_dotenv, load_dotenv
 from fastcore.foundation import L
 from fastcore.xtras import Path
@@ -340,11 +342,14 @@ class Geography:
             inplace=True,
         )
 
+        self.df = gdf_joined
+        self.fix_inverted_or_swapped_coordinates(regions)
+
         coords_inside_br = (
-            gdf_joined["CD_MUN"].notna()
-            & gdf_joined["LAT"].notna()
-            & gdf_joined["LON"].notna()
-            & gdf_joined["SIGLA_UF"].notna()
+            self.df["CD_MUN"].notna()
+            & self.df["LAT"].notna()
+            & self.df["LON"].notna()
+            & self.df["SIGLA_UF"].notna()
         )
         self.log.update({"coords_inside_br": coords_inside_br})
         Base.register_log(
@@ -353,7 +358,121 @@ class Geography:
             row_filter=~coords_inside_br,
         )
 
-        self.df = gdf_joined
+    def fix_inverted_or_swapped_coordinates(self, regions: gpd.GeoDataFrame) -> None:
+        """Recover coordinates outside Brazilian land polygons caused by sign inversion or Lat/Lon swap.
+        Only applies a candidate transform when the resulting point intersects an IBGE polygon matching
+        the record's declared `Código_Município` (or `UF`), preventing offshore false positives.
+        """
+        lat = pd.to_numeric(self.df["Latitude"], errors="coerce")
+        lon = pd.to_numeric(self.df["Longitude"], errors="coerce")
+        outside = self.df["CD_MUN"].isna() & lat.notna() & lon.notna()
+        has_decl = self.df["Código_Município"].notna() | self.df["UF"].notna()
+        if not (outside & has_decl).any():
+            return
+
+        tree = shapely.STRtree(regions.geometry.to_numpy())
+        transforms = (
+            (
+                "Sinal da Longitude invertido (Leste -> Oeste).",
+                lambda la, lo: (la, -lo),
+                ("Longitude",),
+            ),
+            (
+                "Sinal da Latitude invertido.",
+                lambda la, lo: (-la, lo),
+                ("Latitude",),
+            ),
+            (
+                "Sinais de Latitude e Longitude invertidos.",
+                lambda la, lo: (-la, -lo),
+                ("Latitude", "Longitude"),
+            ),
+            (
+                "Latitude e Longitude trocadas entre si.",
+                lambda la, lo: (lo, la),
+                ("Latitude", "Longitude"),
+            ),
+        )
+
+        for reason, fn, logged_cols in transforms:
+            cand_mask = self.df["CD_MUN"].isna() & lat.notna() & lon.notna() & has_decl
+            cand_idx = self.df.index[cand_mask]
+            if len(cand_idx) == 0:
+                break
+
+            cand_lat, cand_lon = fn(
+                lat.loc[cand_idx].to_numpy(dtype="float64"),
+                lon.loc[cand_idx].to_numpy(dtype="float64"),
+            )
+            valid_wgs = (np.abs(cand_lat) <= 90.0) & (np.abs(cand_lon) <= 180.0)
+            pts = shapely.points(
+                np.where(valid_wgs, cand_lon, 0.0),
+                np.where(valid_wgs, cand_lat, 0.0),
+            )
+            pt_i, poly_i = tree.query(pts, predicate="intersects")
+            if len(pt_i) == 0:
+                continue
+            _, first_occ = np.unique(pt_i, return_index=True)
+            pt_i, poly_i = pt_i[first_occ], poly_i[first_occ]
+            keep = valid_wgs[pt_i]
+            pt_i, poly_i = pt_i[keep], poly_i[keep]
+            if len(pt_i) == 0:
+                continue
+
+            hit_df_idx = cand_idx[pt_i]
+            hit_cd = regions["CD_MUN"].iloc[poly_i].astype("string").to_numpy()
+            hit_nm = regions["NM_MUN"].iloc[poly_i].astype("string").to_numpy()
+            hit_uf = regions["SIGLA_UF"].iloc[poly_i].astype("string").to_numpy()
+
+            decl_uf = self.df.loc[hit_df_idx, "UF"].fillna("").to_numpy()
+            confirmed = (decl_uf != "") & (decl_uf == hit_uf)
+            if not confirmed.any():
+                continue
+
+            fix_idx = hit_df_idx[confirmed]
+            row_filter = pd.Series(False, index=self.df.index)
+            row_filter.loc[fix_idx] = True
+
+            msg = f"Coordenadas corrigidas automaticamente: {reason}"
+            for col in logged_cols:
+                self.df[f"#{col}"] = self.df[col].astype("string").fillna("")
+                Base.register_log(self.df, msg, f"#{col}", row_filter)
+                self.df.drop(columns=[f"#{col}"], inplace=True)
+
+            new_la_str = pd.Series(cand_lat[pt_i[confirmed]], index=fix_idx).astype("string")
+            new_lo_str = pd.Series(cand_lon[pt_i[confirmed]], index=fix_idx).astype("string")
+            self.df.loc[fix_idx, "Latitude"] = new_la_str
+            self.df.loc[fix_idx, "Longitude"] = new_lo_str
+            self.df.loc[fix_idx, "CD_MUN"] = hit_cd[confirmed]
+            self.df.loc[fix_idx, "NM_MUN"] = hit_nm[confirmed]
+            self.df.loc[fix_idx, "SIGLA_UF"] = hit_uf[confirmed]
+            self.df.loc[fix_idx, "LAT"] = new_la_str
+            self.df.loc[fix_idx, "LON"] = new_lo_str
+
+    def substitute_invalid_outside_coordinates(self) -> None:
+        """Replace physically impossible or Null Island coordinates (e.g. |Lat|>60, (0,0)) with IBGE centroid
+        when a valid IBGE municipality exists, without touching legitimate offshore/border stations.
+        """
+        lat = pd.to_numeric(self.df["Latitude"], errors="coerce")
+        lon = pd.to_numeric(self.df["Longitude"], errors="coerce")
+        outside = self.df["CD_MUN"].isna() & lat.notna() & lon.notna()
+        absurd = (
+            (lat.abs() > 60.0)
+            | (lon.abs() > 180.0)
+            | ((lat.abs() < 1.0) & (lon.abs() < 1.0))
+            | (lat.abs() < 1e-4)
+            | (lon.abs() < 1e-4)
+        )
+        rows = outside & absurd & self.log["city_normalized"]
+        self.log.update({"absurd_coords_replaced": rows})
+        log = "Coordenadas inválidas (Null Island / fora de escala). Inserido coordenadas do Município do IBGE."
+        self._replace_columns(
+            ["Latitude_IBGE", "Longitude_IBGE"],
+            ["Latitude", "Longitude"],
+            log,
+            rows,
+            float_cols=True,
+        )
 
     def fill_missing_city_info(self):
         """Fill the missing city code
@@ -426,6 +545,7 @@ class Geography:
         self.normalize_location_names()
         self.fill_missing_coords()
         self.intersect_coordinates_on_poligon()
+        self.substitute_invalid_outside_coordinates()
         self.substitute_divergent_coordinates()
         self.fill_missing_city_info()
         # self.input_info_from_coords()
