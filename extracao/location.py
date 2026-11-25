@@ -367,6 +367,7 @@ class Geography:
 
         self.df = gdf_joined
         self.fix_inverted_or_swapped_coordinates(regions)
+        self.fix_decimal_shift_coordinates(regions)
 
         coords_inside_br = (
             self.df["CD_MUN"].notna()
@@ -475,6 +476,102 @@ class Geography:
             self.df.loc[fix_idx, "SIGLA_UF"] = hit_uf[confirmed]
             self.df.loc[fix_idx, "LAT"] = new_la_str
             self.df.loc[fix_idx, "LON"] = new_lo_str
+
+    def fix_decimal_shift_coordinates(self, regions: gpd.GeoDataFrame) -> None:
+        """Shift one decimal place, preferring a municipality match over a UF match."""
+        region_codes = regions["CD_MUN"].astype("string")
+        eligible = self.df["CD_MUN"].isna() & self.df["Código_Município"].isin(
+            region_codes.dropna()
+        )
+        filled_coords = self.log.get("filled_city_coords")
+        if filled_coords is not None:
+            eligible &= ~filled_coords
+
+        columns = ["Latitude", "Longitude"]
+        coords = (
+            self.df.loc[eligible, columns]
+            .apply(pd.to_numeric, errors="coerce")
+            .to_numpy(dtype="float64", na_value=np.nan)
+        )
+        wgs84_limits = np.array([90.0, 180.0])
+        # Values outside these bounds cannot be recovered by a single decimal shift.
+        usable = ((np.abs(coords) <= wgs84_limits * 10) & (coords != -1)).all(axis=1)
+        if not usable.any():
+            return
+
+        coords = coords[usable]
+        source_index = self.df.index[eligible][usable]
+        declared_cd = self.df.loc[source_index, "Código_Município"].to_numpy()
+        declared_uf = self.df.loc[source_index, "UF"].fillna("").to_numpy()
+        region_cd = region_codes.fillna("").to_numpy()
+        region_uf = regions["SIGLA_UF"].astype("string").fillna("").to_numpy()
+        polygons = regions.geometry.to_numpy()
+
+        candidates = []
+        for axis, column in enumerate(columns):
+            for operation, scale in (("multiplicada", 10.0), ("dividida", 0.1)):
+                shifted = coords.copy()
+                shifted[:, axis] *= scale
+                valid = ((np.abs(shifted) <= wgs84_limits) & (shifted != -1)).all(axis=1)
+                valid &= shifted[:, axis] != coords[:, axis]
+                positions = np.flatnonzero(valid)
+                points = shapely.points(shifted[positions, 1], shifted[positions, 0])
+                pt_i, poly_i = regions.sindex.query(points, predicate="intersects")
+
+                unique = np.bincount(pt_i, minlength=len(points))[pt_i] == 1
+                inside = unique & shapely.within(points[pt_i], polygons[poly_i])
+                source = positions[pt_i[inside]]
+                polygon = poly_i[inside]
+                exact = declared_cd[source] == region_cd[polygon]
+                same_uf = (declared_uf[source] != "") & (
+                    declared_uf[source] == region_uf[polygon]
+                )
+                confirmed = (exact | same_uf) & (region_cd[polygon] != "")
+                if confirmed.any():
+                    candidates.append(
+                        pd.DataFrame(
+                            {
+                                "column": column,
+                                "operation": operation,
+                                "value": shifted[source[confirmed], axis],
+                                "polygon": polygon[confirmed],
+                                "exact": exact[confirmed],
+                            },
+                            index=source_index[source[confirmed]],
+                        )
+                    )
+
+        if not candidates:
+            return
+        matches = pd.concat(candidates)
+        best_level = matches.groupby(level=0)["exact"].transform("max")
+        fixes = matches[matches["exact"] == best_level]
+        fixes = fixes[~fixes.index.duplicated(keep=False)]
+        if fixes.empty:
+            return
+
+        self.df["_decimal_coordinate"] = fixes["value"].astype("string")
+        for (column, operation, exact), group in fixes.groupby(
+            ["column", "operation", "exact"]
+        ):
+            scope = "mesmo município" if exact else "mesma UF"
+            message = (
+                f"Coordenadas corrigidas (casa decimal, {scope}): "
+                f"{column} {operation} por 10."
+            )
+            rows = pd.Series(self.df.index.isin(group.index), index=self.df.index)
+            self._replace_columns(
+                ["_decimal_coordinate"], [column], rows, message, float_cols=True
+            )
+        del self.df["_decimal_coordinate"]
+
+        polygon_cols = ["CD_MUN", "NM_MUN", "SIGLA_UF"]
+        self.df.loc[fixes.index, polygon_cols] = (
+            regions.iloc[fixes["polygon"]][polygon_cols].astype("string").to_numpy()
+        )
+        self.df.loc[fixes.index, ["LAT", "LON"]] = self.df.loc[
+            fixes.index, columns
+        ].to_numpy()
 
     def substitute_invalid_outside_coordinates(self) -> None:
         """Replace physically impossible or Null Island coordinates (e.g. |Lat|>60, (0,0)) with IBGE centroid
