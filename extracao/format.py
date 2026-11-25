@@ -90,7 +90,6 @@ def merge_on_frequency(
         on=on,
         how="outer",
         indicator=True,
-        copy=False,
     )
 
     left_suffix, right_suffix = "_x", "_y"
@@ -125,9 +124,9 @@ def merge_on_frequency(
         f"{long}{right_suffix}",
     ]
 
-    pp(
-        "[bold green]Logging:[/bold green] [italic]Calculando distância entre estações mescladas."
-    )
+    # pp(
+    #     "[bold green]Logging:[/bold green] [italic]Calculando distância entre estações mescladas."
+    # )
     df.loc[both, "Distance"] = df.loc[both, both_columns].progress_apply(
         get_km_distance, axis=1
     )
@@ -320,18 +319,26 @@ def merge_dicts(json_log: str):
     if not (list_of_dicts := [i for i in json.loads(json_log) if i != "[]"]):
         return "[]"
     merged_dict = defaultdict(list)
-    for item in list_of_dicts:
-        column = item.get("Coluna")
-        if column == "#Estação" and (original := item.get("Original")):
+    for log_dict in list_of_dicts:
+        processamento = log_dict["Log"]
+        merged_dict[processamento].append(log_dict)
+
+    for key, value in merged_dict.items():
+        if len(value) == 1:
+            merged_dict[key] = value[0]
+            continue
+        merged_dict[key] = _merge_sub_dicts(value)
+
+    output_list = []
+
+    for log_dict in merged_dict.values():
+        column = log_dict.get("Coluna")
+        if column == "#Estação" and (original := log_dict.get("Original")):
             value = literal_eval(original)
             if isinstance(value, list):
-                item["Original"] = str(sorted(set(value)))
-        merged_dict[item["Processamento"], column].append(item)
+                log_dict["Original"] = str(sorted(set(value)))
+        output_list.append(log_dict)
 
-    output_list = [
-        entries[0] if len(entries) == 1 else _merge_sub_dicts(entries)
-        for entries in merged_dict.values()
-    ]
     return json.dumps(output_list, ensure_ascii=False)
 
 
@@ -340,14 +347,14 @@ def _merge_sub_dicts(list_of_sub_dicts):
     Mescla dicionários com o mesmo processamento e coluna.
 
     Argumentos:
-      list_of_sub_dicts: Uma lista contendo dicionários com a mesma chave "Processamento".
+      list_of_sub_dicts: Uma lista contendo dicionários com a mesma chave "Log".
 
     Retorno:
       Um dicionário com os dicionários mesclados.
     """
     merged_dict = {}
     for key in list_of_sub_dicts[0]:
-        if key == "Processamento":
+        if key == "Log":
             merged_dict[key] = list_of_sub_dicts[0][key]
         else:
             merged_dict[key] = [sub_dict[key] for sub_dict in list_of_sub_dicts]

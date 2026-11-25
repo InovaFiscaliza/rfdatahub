@@ -150,13 +150,23 @@ class Geography:
         )
         self.df.drop(columns=["#Código_Município"], inplace=True)
 
-    def _replace_columns(self, columns, originals, log, row_filter, float_cols=False):
+    def _replace_columns(
+        self, columns, originals, row_filter, log=None, float_cols=False
+    ):
         for column, original in zip(columns, originals):
             col_filter = row_filter
             if not float_cols:
                 col_filter = row_filter & (
-                    self.df[original].astype("string").fillna("")
-                    != self.df[column].astype("string").fillna("")
+                    self.df[original]
+                    .astype("string")
+                    .fillna("")
+                    .str.strip()
+                    .str.lower()
+                    != self.df[column]
+                    .astype("string")
+                    .fillna("")
+                    .str.strip()
+                    .str.lower()
                 )
             if log:
                 self.df[f"#{original}"] = self.df[original].fillna("")
@@ -165,79 +175,84 @@ class Geography:
             # Use of col_filter instead of rows to avoid float comparison
             self.df.loc[col_filter, original] = self.df.loc[col_filter, column]
 
-    def replace_invalid_city_codes(self):
-        """Tries to fix the wrong city codes by looking at the normalized city names"""
-        import re
-        import unicodedata
+    # def replace_invalid_city_codes(self):
+    #     """Tries to fix the wrong city codes by looking at the normalized city names"""
+    #     import re
+    #     import unicodedata
 
-        def remove_punctuation(word):
-            # Unicode normalize transforma um caracter em seu equivalente em latin.
-            nfkd = unicodedata.normalize("NFKD", word.lower())
-            decoded_word = "".join(c for c in nfkd if not unicodedata.combining(c))
+    #     def remove_punctuation(word):
+    #         # Unicode normalize transforma um caracter em seu equivalente em latin.
+    #         nfkd = unicodedata.normalize("NFKD", word.lower())
+    #         decoded_word = "".join(c for c in nfkd if not unicodedata.combining(c))
 
-            return re.sub(r"[^a-zA-Z0-9 ]", "", decoded_word)
+    #         return re.sub(r"[^a-zA-Z0-9 ]", "", decoded_word)
 
-        municipios = pd.read_csv(
-            self.ibge,
-            usecols=["Código_Município", "Município", "UF"],
-            dtype="string",
-            dtype_backend="numpy_nullable",
-        )
+    #     municipios = pd.read_csv(
+    #         self.ibge,
+    #         usecols=["Código_Município", "Município", "UF"],
+    #         dtype="string",
+    #         dtype_backend="numpy_nullable",
+    #     )
 
-        municipios["Município_ASCII"] = municipios["Município"].apply(
-            remove_punctuation
-        )
+    #     municipios["Município_ASCII"] = municipios["Município"].apply(
+    #         remove_punctuation
+    #     )
 
-        self.df["UF"] = self.df["UF"].astype("string").str.strip().str.upper()
-        self.df["Município"] = self.df["Município"].astype("string").str.strip()
-        self.df["Município_ASCII"] = (
-            self.df["Município"].fillna("").apply(remove_punctuation)
-        )
+    #     self.df["UF"] = self.df["UF"].astype("string").str.strip().str.upper()
+    #     self.df["Município"] = self.df["Município"].astype("string").str.strip()
+    #     self.df["Município_ASCII"] = (
+    #         self.df["Município"].fillna("").apply(remove_punctuation)
+    #     )
 
-        self.df = pd.merge(
-            self.df,
-            municipios,
-            on=["Município_ASCII", "UF"],
-            how="left",
-        )
+    #     self.df = pd.merge(
+    #         self.df,
+    #         municipios,
+    #         on=["Município_ASCII", "UF"],
+    #         how="left",
+    #     )
 
-        self.df.rename(
-            columns={
-                "Município_x": "Município",
-                "Código_Município_x": "Código_Município",
-            },
-            inplace=True,
-        )
+    #     self.df.rename(
+    #         columns={
+    #             "Município_x": "Município",
+    #             "Código_Município_x": "Código_Município",
+    #         },
+    #         inplace=True,
+    #     )
 
-        invalid_code = ~self.log["empty_code"]
-        invalid_code &= ~self.log["code_not_numeric"]
-        invalid_code &= self.df["Município_IBGE"].isna()
-        self.log.update({"invalid_code": invalid_code})
+    #     invalid_code = ~self.log["empty_code"]
+    #     invalid_code &= ~self.log["code_not_numeric"]
+    #     invalid_code &= self.df["Município_IBGE"].isna()
+    #     self.log.update({"invalid_code": invalid_code})
 
-        log = "Código do Município não consta no IBGE."
-        log += "\nMunicípio normalizado e UF serão usados como chave para substituição."
-        Base.register_log(self.df, log, "Código_Município", invalid_code)
-        columns = ["Município_y", "Código_Município_y"]
-        originals = ["Município", "Código_Município"]
-        # TODO: Verify if there isn't a wrong Município match, given Município is not unique
-        has_replacement = invalid_code & self.df["Código_Município_y"].notna()
-        self._replace_columns(columns, originals, log, has_replacement)
+    #     log = "Código do Município não consta no IBGE."
+    #     log += "\nMunicípio normalizado e UF serão usados como chave para substituição."
+    #     Base.register_log(self.df, log, "Código_Município", invalid_code)
+    #     columns = ["Município_y", "Código_Município_y"]
+    #     originals = ["Município", "Código_Município"]
+    #     # TODO: Verify if there isn't a wrong Município match, given Município is not unique
+    #     has_replacement = invalid_code & self.df["Código_Município_y"].notna()
+    #     self._replace_columns(columns, originals, log, has_replacement)
 
-        self.df.drop(
-            columns=["Município_y", "Município_ASCII", "Código_Município_y"],
-            inplace=True,
-        )
+    #     self.df.drop(
+    #         columns=["Município_y", "Município_ASCII", "Código_Município_y"],
+    #         inplace=True,
+    #     )
 
-        if has_replacement.any():
-            self.df.drop(
-                columns=["Latitude_IBGE", "Longitude_IBGE", "Município_IBGE", "UF_IBGE"],
-                inplace=True,
-            )
-            self.merge_df_with_ibge()
+    #     if has_replacement.any():
+    #         self.df.drop(
+    #             columns=[
+    #                 "Latitude_IBGE",
+    #                 "Longitude_IBGE",
+    #                 "Município_IBGE",
+    #                 "UF_IBGE",
+    #             ],
+    #             inplace=True,
+    #         )
+    #         self.merge_df_with_ibge()
 
-        self.df[["Município", "Código_Município"]] = self.df[
-            ["Município", "Código_Município"]
-        ].astype("string")
+    #     self.df[["Município", "Código_Município"]] = self.df[
+    #         ["Município", "Código_Município"]
+    #     ].astype("string")
 
     def merge_df_with_ibge(self):
         """It merges the instance df with the IBGE dfs based on `Código_Município`
@@ -279,13 +294,18 @@ class Geography:
         self.log.update({"filled_city_coords": rows})
         columns = ["Latitude_IBGE", "Longitude_IBGE"]
         originals = ["Latitude", "Longitude"]
-        log = "Valor Nulo de Coordenadas. Inserido coordenadas do Município"
+        log = "IBGE: Coordenadas Nulas -> Coordenadas do Município"
+        Base.register_log(self.df, log, row_filter=rows)
         # Lembre-se que colunas float não é possível comparar diretamente como strings
-        self._replace_columns(columns, originals, log, rows, float_cols=True)
+        self._replace_columns(columns, originals, rows, float_cols=True)
 
     def normalize_location_names(self) -> None:
-        self.df.loc[:, "UF"] = self.df.loc[:, "UF"].astype("string").str.strip().str.upper()
-        self.df.loc[:, "Município"] = self.df.loc[:, "Município"].astype("string").str.strip()
+        self.df.loc[:, "UF"] = (
+            self.df.loc[:, "UF"].astype("string").str.strip().str.upper()
+        )
+        self.df.loc[:, "Município"] = (
+            self.df.loc[:, "Município"].astype("string").str.strip()
+        )
         has_ibge_city = (
             self.df["Latitude_IBGE"].notna()
             & self.df["Longitude_IBGE"].notna()
@@ -293,18 +313,21 @@ class Geography:
             & self.df["UF_IBGE"].notna()
         )
         self.log.update({"city_normalized": has_ibge_city})
-        name_or_uf_differs = (
-            self.df["Município"].fillna("").str.lower()
-            != self.df["Município_IBGE"].str.lower()
-        ) | (
-            self.df["UF"].fillna("").str.upper()
-            != self.df["UF_IBGE"].str.upper()
-        )
-        rows = has_ibge_city & name_or_uf_differs
+        # name_or_uf_differs = (
+        #     self.df["Município"].fillna("").str.lower()
+        #     != self.df["Município_IBGE"].str.lower()
+        # ) | (
+        #     self.df["UF"].fillna("").str.upper()
+        #     != self.df["UF_IBGE"].str.upper()
+        # )
+        # rows = has_ibge_city & name_or_uf_differs
         originals = ["Município", "UF"]
         columns = ["Município_IBGE", "UF_IBGE"]
-        log = "Nomes de Municípios e UFs normalizados de acordo com o IBGE"
-        self._replace_columns(columns, originals, log, rows)
+        self.df.loc[has_ibge_city, originals] = self.df.loc[
+            has_ibge_city, columns
+        ].values
+        # log = "Nomes de Municípios e UFs normalizados (IBGE)"
+        # self._replace_columns(columns, originals, log, has_ibge_city)
 
     def intersect_coordinates_on_poligon(self):
         """Intersect the coordinates with the shapefile of the IBGE
@@ -354,7 +377,7 @@ class Geography:
         self.log.update({"coords_inside_br": coords_inside_br})
         Base.register_log(
             self.df,
-            "Coordenadas Fora do Território Brasileiro",
+            "Fora do Território Continental BR.",
             row_filter=~coords_inside_br,
         )
 
@@ -433,14 +456,18 @@ class Geography:
             row_filter = pd.Series(False, index=self.df.index)
             row_filter.loc[fix_idx] = True
 
-            msg = f"Coordenadas corrigidas automaticamente: {reason}"
+            msg = f"Coordenadas corrigidas: {reason}"
             for col in logged_cols:
                 self.df[f"#{col}"] = self.df[col].astype("string").fillna("")
                 Base.register_log(self.df, msg, f"#{col}", row_filter)
                 self.df.drop(columns=[f"#{col}"], inplace=True)
 
-            new_la_str = pd.Series(cand_lat[pt_i[confirmed]], index=fix_idx).astype("string")
-            new_lo_str = pd.Series(cand_lon[pt_i[confirmed]], index=fix_idx).astype("string")
+            new_la_str = pd.Series(cand_lat[pt_i[confirmed]], index=fix_idx).astype(
+                "string"
+            )
+            new_lo_str = pd.Series(cand_lon[pt_i[confirmed]], index=fix_idx).astype(
+                "string"
+            )
             self.df.loc[fix_idx, "Latitude"] = new_la_str
             self.df.loc[fix_idx, "Longitude"] = new_lo_str
             self.df.loc[fix_idx, "CD_MUN"] = hit_cd[confirmed]
@@ -465,12 +492,12 @@ class Geography:
         )
         rows = outside & absurd & self.log["city_normalized"]
         self.log.update({"absurd_coords_replaced": rows})
-        log = "Coordenadas inválidas (Null Island / fora de escala). Inserido coordenadas do Município do IBGE."
+        log = "IBGE: Coordenadas inválidas."
         self._replace_columns(
             ["Latitude_IBGE", "Longitude_IBGE"],
             ["Latitude", "Longitude"],
-            log,
             rows,
+            log,
             float_cols=True,
         )
 
@@ -482,26 +509,23 @@ class Geography:
         self.log.update({"filled_city_info": rows})
         originals = ["Código_Município", "Município", "UF"]
         columns = ["CD_MUN", "NM_MUN", "SIGLA_UF"]
-        log = "Código do município retirado do polígono territorial, à partir das coordenadas."
-        self._replace_columns(columns, originals, log, rows)
+        log = "IBGE: Dado derivado das coordenadas."
+        self._replace_columns(columns, originals, rows, log)
 
-    def substitute_divergent_coordinates(self):
-        """Substitute the coordinates with the centroid from the IBGE `municipios.csv`
+    def polygon2cities(self):
+        """Substitute the city and or UF with the centroid from the IBGE `municipios.csv`
         After the intersection of the coordinates with the shapefile, the city code from the data
         should match the one returned from the shapefile.
-        If it doesn't the original coordinates are replaced by the ones representing the centroid of the original city code
+        If it doesn't the divergence is logged but the original coordinates are kept replaced by the ones representing the centroid of the original city code
         """
         # TODO: keep track of "unchanged divergent coordinates, i.e. with IBGE coords null"
         wrong_city_coords = (
             self.df["Código_Município"].notna() & self.df["CD_MUN"].notna()
         )
         wrong_city_coords &= self.df["Código_Município"] != self.df["CD_MUN"]
-        wrong_city_coords &= self.log["city_normalized"]
         self.log.update({"wrong_city_coords": wrong_city_coords})
-        originals = ["Latitude", "Longitude"]
-        columns = ["Latitude_IBGE", "Longitude_IBGE"]
-        log = "Coordenadas divergentes (Polígono do IBGE retorna município distinto). Coordenadas do Município do IBGE."
-        self._replace_columns(columns, originals, log, wrong_city_coords, True)
+        log = "IBGE: Município distinto."
+        Base.register_log(self.df, log, "NM_MUN", wrong_city_coords)
 
     # def input_info_from_coords(self):
     #     from geopy.geocoders import Nominatim
@@ -541,13 +565,14 @@ class Geography:
     def validate(self) -> pd.DataFrame:
         """Helper function to load the IBGE data, enrich and and validate the location information"""
         self.merge_df_with_ibge()
-        self.replace_invalid_city_codes()
+        # self.replace_invalid_city_codes()
         self.normalize_location_names()
         self.fill_missing_coords()
         self.intersect_coordinates_on_poligon()
         self.substitute_invalid_outside_coordinates()
-        self.substitute_divergent_coordinates()
+        self.polygon2cities()
         self.fill_missing_city_info()
+
         # self.input_info_from_coords()
         self._append_filters()
         return self.df
