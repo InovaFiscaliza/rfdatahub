@@ -114,13 +114,11 @@ class Radcom(Sitarweb):
 
         a = df.Situação.isna()
         df.loc[a, "Classe"] = df.loc[a, "Fase"]
-        processing = (
-            "RADCOM: Classe=Fase. Situação Nula. Colunas Fase e Situação descartadas"
-        )
+        processing = "RADCOM: Classe=Fase. Situação Nula."
         Base.register_log(df, processing, row_filter=a)
 
         df.loc[~a, "Classe"] = df.loc[~a, "Fase"] + "-" + df.loc[~a, "Situação"]
-        processing = "RADCOM: Classe=Fase-Situação. Colunas Fase e Situação descartadas"
+        processing = "RADCOM: Classe=Fase-Situação."
         Base.register_log(df, processing, row_filter=~a)
         df.drop(["Fase", "Situação"], axis=1, inplace=True)
 

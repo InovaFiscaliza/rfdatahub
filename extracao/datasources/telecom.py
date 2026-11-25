@@ -83,7 +83,7 @@ class Telecom(Mosaico):
         df_sub = df[~duplicated].dropna(subset=AGG_LICENCIAMENTO).reset_index(drop=True)
         # discarded = df[duplicated].reset_index(drop=True)
         # log = f"""[("Colunas", {AGG_LICENCIAMENTO}),
-        # ("Processamento", "Registro agrupado e descartado do arquivo final")]"""
+        # ("Log", "Registro agrupado e descartado do arquivo final")]"""
         # self.append2discarded(self.register_log(discarded, log))
         # del discarded
         # gc.collect()
@@ -93,7 +93,7 @@ class Telecom(Mosaico):
             .size()
             .values
         )
-        log = f'MOSAICO-TELECOM: Registros Agrupados. "Colunas: {AGG_LICENCIAMENTO}'
+        log = f"MOSAICO-TELECOM: Agrupamento: {AGG_LICENCIAMENTO}"
         df_sub = Mosaico.register_log(
             df=df_sub, processing=log, row_filter=df_sub.Multiplicidade > 1
         )

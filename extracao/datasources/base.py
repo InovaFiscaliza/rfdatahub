@@ -130,9 +130,9 @@ class Base:
         It's assumed the typing in the signature is correct
         """
         log = listify(eval(row.loc["Log"]))
-        new_log = {"Processamento": processing}
+        new_log = {"Log": processing}
         if column is not None:
-            new_log.update({"Coluna": column, "Original": row.loc[column]})
+            new_log.update({"Coluna": column, "Valor": row.loc[column]})
         log.append(new_log)
         return json.dumps(log, ensure_ascii=False)
 
