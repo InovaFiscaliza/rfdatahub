@@ -30,7 +30,7 @@ class MosaicoCacheTests(unittest.TestCase):
         for source_class in (Smp, Telecom, SRD):
             with self.subTest(source=source_class.__name__):
                 source = source_class(read_cache=True)
-                raw = pd.DataFrame({"Log": ['[{"Processamento": "old"}]']})
+                raw = pd.DataFrame({"Log": ['[{"Log": "old"}]']})
                 with patch.object(source, "_read", return_value=raw):
                     result = source._extract(source.collection, [])
                 self.assertEqual(result["Log"].tolist(), ["[]"])

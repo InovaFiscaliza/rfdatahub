@@ -39,16 +39,16 @@ class StationLogTests(unittest.TestCase):
             logs.iloc[processed["Log"].iloc[0]],
             [
                 {
-                    "Processamento": "Invalid coordinate",
+                    "Log": "Invalid coordinate",
                     "Coluna": "Latitude",
                     "Original": ["invalid", "still invalid"],
                 },
                 {
-                    "Processamento": "Invalid coordinate",
+                    "Log": "Invalid coordinate",
                     "Coluna": "Longitude",
                     "Original": "?",
                 },
-                {"Processamento": "Invalid coordinate"},
+                {"Log": "Invalid coordinate"},
             ],
         )
         self.assertEqual(processed["Log"].iloc[0], processed["Log"].iloc[1])
@@ -68,7 +68,7 @@ class StationLogTests(unittest.TestCase):
             json.loads(logs.iloc[processed["Log"].iloc[0]]),
             [
                 {
-                    "Processamento": "Grouped stations",
+                    "Log": "Grouped stations",
                     "Coluna": "#Estação",
                     "Original": "['1', '2']",
                 },
