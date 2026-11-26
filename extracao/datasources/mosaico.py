@@ -129,3 +129,10 @@ class Mosaico(Base, GetAttr):
             df["Largura_Emissão(kHz)"], errors="coerce"
         )
         return df
+
+    @staticmethod
+    def ungrouped(df: pd.DataFrame) -> pd.DataFrame:
+        """Normalize and sort rows without collapsing duplicates."""
+        df = Mosaico._prepare_rows(df)
+        df["Multiplicidade"] = 1
+        return df.reset_index(drop=True)

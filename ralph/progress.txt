@@ -46,3 +46,7 @@
 - FULL-03 completed: extracted station normalization, sorting, and numeric bandwidth conversion
   into `Mosaico._prepare_rows`; `aggregate` delegates to it. Sample comparison matches all
   baseline files. Full unittest discovery reports only the two known baseline failures.
+- FULL-04 completed: added `Mosaico.ungrouped`, which prepares and sorts every row, sets
+  Multiplicidade to 1 for downstream SMP processing, and does not drop null grouping values or
+  write grouping logs. Focused tests confirm the grouped and ungrouped paths' distinct behavior;
+  sample comparison remains identical to baseline.
