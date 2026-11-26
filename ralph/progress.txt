@@ -74,3 +74,8 @@
 - FULL-09 completed: added `Estacoes.inline_log` to merge log JSON without factorizing the
   column or writing `log.parquet`; null and `-1` sentinels become empty JSON arrays. Tests verify
   parity with the grouped log cache and that inline formatting creates no file.
+- FULL-10 completed: `Estacoes(full=True).update()` now generates grouped results first, then
+  loads or processes full Telecom/SMP outputs, reuses copies of the other sources, and builds
+  `df_full` with inline logs and no Multiplicidade. Added an offline `full` harness command.
+  `full --sample 50000` passed, including grouped baseline equality and full output invariants;
+  targeted tests passed. Full discovery still has the two known unrelated failures.

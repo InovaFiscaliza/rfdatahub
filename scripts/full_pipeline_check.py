@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import time
 from pathlib import Path
@@ -13,6 +14,7 @@ from fastcore.foundation import L
 from extracao.constants import (
     AGG_LICENCIAMENTO,
     AGG_SMP,
+    COLS_SRD,
     IBGE_MUNICIPIOS,
     IBGE_POLIGONO,
 )
@@ -54,7 +56,7 @@ def _process_source(source, output_dir: Path, sample: int) -> pd.DataFrame:
     _sample_raw_cache(source, sample)
     source.update()
     if source.stem in {"telecom", "smp"}:
-        source._save(source.df, output_dir, source.stem)
+        source._save(source.df, output_dir, source.output_stem)
     return source.df
 
 
@@ -77,7 +79,7 @@ def _check_offline_inputs() -> None:
         raise FileNotFoundError(f"Missing offline baseline inputs: {', '.join(missing)}")
 
 
-def _run_grouped(output_dir: Path, sample: int) -> dict[str, pd.DataFrame]:
+def _load_offline_sources(output_dir: Path, sample: int) -> L:
     _check_offline_inputs()
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -91,6 +93,13 @@ def _run_grouped(output_dir: Path, sample: int) -> dict[str, pd.DataFrame]:
     aero_source.folder = CACHE_DIR
     aero = aero_source.df
 
+    return L([telecom, smp, srd, stel, radcom, aero])
+
+
+def _run_grouped(output_dir: Path, sample: int) -> dict[str, pd.DataFrame]:
+    telecom, smp, srd, stel, radcom, aero = _load_offline_sources(
+        output_dir, sample
+    )
     stations = Estacoes(read_cache=True, parallel=False)
     stations.folder = output_dir
     stations_df = stations._format(L([telecom, smp, srd, stel, radcom, aero]))
@@ -101,6 +110,29 @@ def _run_grouped(output_dir: Path, sample: int) -> dict[str, pd.DataFrame]:
         "smp": smp,
         "estacoes": stations_df,
         "log": pd.read_parquet(output_dir / "log.parquet"),
+    }
+
+
+def _run_full(output_dir: Path, sample: int) -> dict[str, pd.DataFrame]:
+    sources = _load_offline_sources(output_dir, sample)
+    _process_source(Telecom(read_cache=True, full=True), output_dir, sample)
+    _process_source(Smp(read_cache=True, full=True), output_dir, sample)
+
+    stations = Estacoes(read_cache=True, parallel=False, full=True)
+    stations.folder = output_dir
+    for source, df in zip(stations.sources, sources):
+        source.folder = output_dir
+        source.df = df
+    stations.update()
+    stations._save(stations.df, output_dir, "estacoes")
+    stations._save(stations.df_full, output_dir, "estacoes_full")
+
+    return {
+        "telecom": pd.read_parquet(output_dir / "telecom.parquet"),
+        "smp": pd.read_parquet(output_dir / "smp.parquet"),
+        "estacoes": pd.read_parquet(output_dir / "estacoes.parquet"),
+        "log": pd.read_parquet(output_dir / "log.parquet"),
+        "estacoes_full": pd.read_parquet(output_dir / "estacoes_full.parquet"),
     }
 
 
@@ -230,6 +262,20 @@ def assert_frames_equal(
         ) from error
 
 
+def _compare_grouped_outputs(actual_dir: Path, baseline_dir: Path) -> None:
+    differences = []
+    for name in ("telecom", "smp", "estacoes", "log"):
+        actual = pd.read_parquet(actual_dir / f"{name}.parquet")
+        expected = pd.read_parquet(baseline_dir / f"{name}.parquet")
+        try:
+            assert_frames_equal(name, actual, expected)
+        except AssertionError as error:
+            differences.append(str(error))
+
+    if differences:
+        raise AssertionError("\n".join(differences))
+
+
 @app.command()
 def baseline(
     sample: int = typer.Option(0, min=0, help="Process only the first N telecom/SMP raw rows."),
@@ -261,20 +307,53 @@ def compare(
     with tempfile.TemporaryDirectory(prefix="rfdatahub-compare-") as temp_dir:
         actual_dir = Path(temp_dir)
         _run_grouped(actual_dir, sample)
-
-        differences = []
-        for name in ("telecom", "smp", "estacoes", "log"):
-            actual = pd.read_parquet(actual_dir / f"{name}.parquet")
-            expected = pd.read_parquet(baseline_dir / f"{name}.parquet")
-            try:
-                assert_frames_equal(name, actual, expected)
-            except AssertionError as error:
-                differences.append(str(error))
-
-    if differences:
-        typer.echo("\n".join(differences), err=True)
-        raise typer.Exit(code=1)
+        try:
+            _compare_grouped_outputs(actual_dir, baseline_dir)
+        except AssertionError as error:
+            typer.echo(str(error), err=True)
+            raise typer.Exit(code=1) from error
     print(f"Grouped outputs match baseline: {baseline_dir}")
+
+
+@app.command()
+def full(
+    sample: int = typer.Option(0, min=0, help="Process only the first N telecom/SMP raw rows."),
+    out: Path = typer.Option(
+        DEFAULT_OUTPUT_DIR / "full", help="Directory for grouped and full outputs."
+    ),
+) -> None:
+    """Run grouped and full station pipelines offline and check their outputs."""
+    output_dir = out / f"sample_{sample}" if sample else out
+    baseline_dir = DEFAULT_OUTPUT_DIR / f"sample_{sample}" if sample else DEFAULT_OUTPUT_DIR
+    results = _run_full(output_dir, sample)
+
+    try:
+        _compare_grouped_outputs(output_dir, baseline_dir)
+    except AssertionError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(code=1) from error
+
+    full = results["estacoes_full"]
+    expected_columns = [column for column in COLS_SRD if column != "Multiplicidade"]
+    if full.columns.tolist() != expected_columns:
+        raise AssertionError(
+            f"Full station columns differ: {full.columns.tolist()} != {expected_columns}"
+        )
+    invalid_logs = [
+        index
+        for index, value in enumerate(full["Log"])
+        if not isinstance(json.loads(value), list)
+    ]
+    if invalid_logs:
+        raise AssertionError(f"Full station Log values are not JSON arrays: {invalid_logs[:5]}")
+    if len(full) < len(results["estacoes"]):
+        raise AssertionError(
+            f"Full station rows ({len(full)}) are fewer than grouped rows "
+            f"({len(results['estacoes'])})."
+        )
+
+    print(f"Grouped outputs match baseline: {baseline_dir}")
+    print(f"Full station output written to {output_dir / 'estacoes_full.parquet'}")
 
 
 if __name__ == "__main__":

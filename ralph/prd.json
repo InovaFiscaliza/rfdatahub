@@ -189,8 +189,8 @@
         ".venv/bin/python scripts/full_pipeline_check.py full --sample 50000",
         ".venv/bin/python -m unittest discover -s tests"
       ],
-      "passes": false,
-      "notes": "merge_on_frequency computes a geodesic per joined row with Aero — on full data this is the main scaling risk; measured in FULL-12."
+      "passes": true,
+      "notes": "Completed: the 50,000-row full command writes and validates grouped and full outputs; grouped files match baseline. Full unittest discovery has only the two previously known failures."
     },
     {
       "id": "FULL-11",

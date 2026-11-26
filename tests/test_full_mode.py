@@ -286,5 +286,60 @@ class InlineLogTests(unittest.TestCase):
             self.assertFalse((Path(folder) / "log.parquet").exists())
 
 
+class StationFullUpdateTests(unittest.TestCase):
+    def test_update_full_processes_full_sources_and_preserves_grouped_sources(self):
+        class ProcessingSource:
+            def __init__(self, df):
+                self.df = df
+                self.folder = None
+                self.updated = False
+                self.saved = False
+
+            def update(self):
+                self.updated = True
+
+            def save(self):
+                self.saved = True
+
+        stations = Estacoes(read_cache=False, parallel=False, full=True)
+        other_frames = [
+            pd.DataFrame({"source": [str(index)]}, dtype="string")
+            for index in range(4)
+        ]
+        for source, frame in zip(stations.sources[2:], other_frames):
+            source.df = frame
+            source.folder = Path("unused")
+        grouped_df = pd.DataFrame({"grouped": ["unchanged"]})
+        stations.df = grouped_df
+
+        telecom_full = ProcessingSource(pd.DataFrame({"full": ["telecom"]}))
+        smp_full = ProcessingSource(pd.DataFrame({"full": ["smp"]}))
+        full_station_frame = pd.DataFrame(
+            {
+                column: ["[]"] if column == "Log" else ["1"]
+                for column in stations.columns
+            }
+        )
+
+        def consolidate(dfs):
+            self.assertEqual(len(dfs), 6)
+            for original, passed in zip(other_frames, dfs[2:]):
+                self.assertIsNot(original, passed)
+                pd.testing.assert_frame_equal(original, passed)
+            return full_station_frame.copy()
+
+        with (
+            patch("extracao.stations.Telecom", return_value=telecom_full),
+            patch("extracao.stations.Smp", return_value=smp_full),
+            patch.object(stations, "_consolidate", side_effect=consolidate),
+        ):
+            stations.update_full()
+
+        self.assertTrue(telecom_full.updated and telecom_full.saved)
+        self.assertTrue(smp_full.updated and smp_full.saved)
+        self.assertIs(stations.df, grouped_df)
+        self.assertNotIn("Multiplicidade", stations.df_full.columns)
+
+
 if __name__ == "__main__":
     unittest.main()

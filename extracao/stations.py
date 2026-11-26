@@ -40,6 +40,7 @@ class Estacoes(Base):
         parallel: bool = True,
         read_cache: bool = False,
         reprocess_sources: bool = False,
+        full: bool = False,
     ):
         self.sql_params = sql_params
         self.mongo_uri = mongo_uri
@@ -47,6 +48,7 @@ class Estacoes(Base):
         self.parallel = parallel
         self.read_cache = read_cache
         self.reprocess_sources = reprocess_sources
+        self.full = full
         self.init_data_sources()
 
     @property
@@ -99,6 +101,39 @@ class Estacoes(Base):
     def update(self):
         dfs = self.extraction()
         self.df = self._format(dfs)
+        if self.full:
+            self.update_full()
+
+    def update_full(self):
+        full_sources = L(
+            [
+                Telecom(self.mongo_uri, self.limit, read_cache=True, full=True),
+                Smp(self.mongo_uri, self.limit, read_cache=True, full=True),
+            ]
+        )
+        for source, grouped_source in zip(full_sources, self.sources[:2]):
+            source.folder = grouped_source.folder
+
+        if self.read_cache and not self.reprocess_sources:
+            full_dfs = full_sources.attrgot("df")
+        else:
+            if self.parallel:
+                full_sources = parallel(
+                    Estacoes._update_source,
+                    full_sources,
+                    n_workers=len(full_sources),
+                    progress=False,
+                )
+            else:
+                full_sources = full_sources.map(Estacoes._update_source)
+            full_dfs = full_sources.attrgot("df")
+
+        other_dfs = [source.df.copy() for source in self.sources[2:]]
+        df_full = self._consolidate(L([*full_dfs, *other_dfs]))
+        df_full = self.inline_log(df_full)
+        self.df_full = df_full.loc[
+            :, [column for column in self.columns if column != "Multiplicidade"]
+        ]
 
     @staticmethod
     def _simplify_sources(df):
