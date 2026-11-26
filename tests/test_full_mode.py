@@ -1,10 +1,15 @@
 import json
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 
 from extracao.constants import AGG_LICENCIAMENTO
 from extracao.datasources.mosaico import Mosaico
+from extracao.datasources.smp import Smp
+from extracao.datasources.telecom import Telecom
 
 
 class MosaicoUngroupedTests(unittest.TestCase):
@@ -51,6 +56,60 @@ class MosaicoUngroupedTests(unittest.TestCase):
         self.assertEqual(
             json.loads(result.loc[0, "Log"])[0]["Original"], "[1, 2]"
         )
+
+
+class FullOutputStemTests(unittest.TestCase):
+    def test_full_sources_read_shared_raw_cache_and_save_separate_outputs(self):
+        for source_class in (Telecom, Smp):
+            with (
+                self.subTest(source=source_class.__name__),
+                tempfile.TemporaryDirectory() as folder,
+            ):
+                source = source_class(read_cache=True, full=True)
+                self.assertEqual(source.output_stem, f"{source.stem}_full")
+                source.folder = Path(folder)
+                processed = pd.DataFrame(
+                    {"result": ["full"]},
+                    dtype="string",
+                )
+                with (
+                    patch.object(
+                        source,
+                        "_read",
+                        return_value=pd.DataFrame({"_id": ["raw"]}, dtype="string"),
+                    ) as read,
+                    patch.object(source, "_format", return_value=processed),
+                ):
+                    source.update()
+                read.assert_called_once_with(f"{source.stem}_raw")
+
+                source.save()
+
+                output = Path(folder) / f"{source.stem}_full.parquet"
+                discarded = Path(folder) / f"{source.stem}_full_discarded.parquet"
+                self.assertTrue(output.is_file())
+                self.assertTrue(discarded.is_file())
+                self.assertEqual(pd.read_parquet(output)["result"].tolist(), ["full"])
+
+                cached_source = source_class(read_cache=True, full=True)
+                cached_source.folder = Path(folder)
+                self.assertEqual(cached_source.df["result"].tolist(), ["full"])
+
+    def test_grouped_sources_keep_their_existing_output_stems(self):
+        for source_class in (Telecom, Smp):
+            with (
+                self.subTest(source=source_class.__name__),
+                tempfile.TemporaryDirectory() as folder,
+            ):
+                source = source_class(read_cache=True)
+                self.assertEqual(source.output_stem, source.stem)
+                source.folder = Path(folder)
+                source.df = pd.DataFrame({"result": ["grouped"]})
+                source.save()
+                self.assertTrue((Path(folder) / f"{source.stem}.parquet").is_file())
+                self.assertTrue(
+                    (Path(folder) / f"{source.stem}_discarded.parquet").is_file()
+                )
 
 
 if __name__ == "__main__":

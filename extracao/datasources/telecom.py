@@ -35,14 +35,23 @@ class Telecom(Mosaico):
     """Extração e Processamento dos serviços de Telecomunições distintos de SMP"""
 
     def __init__(
-        self, mongo_uri: str = MONGO_URI, limit: int = 0, read_cache: bool = False
+        self,
+        mongo_uri: str = MONGO_URI,
+        limit: int = 0,
+        read_cache: bool = False,
+        full: bool = False,
     ) -> None:
         super().__init__(mongo_uri, read_cache=read_cache)
         self.limit = limit
+        self.full = full
 
     @property
     def stem(self):
         return "telecom"
+
+    @property
+    def output_stem(self):
+        return f"{self.stem}_full" if self.full else self.stem
 
     @property
     def collection(self):

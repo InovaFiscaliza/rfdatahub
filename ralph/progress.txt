@@ -50,3 +50,7 @@
   Multiplicidade to 1 for downstream SMP processing, and does not drop null grouping values or
   write grouping logs. Focused tests confirm the grouped and ungrouped paths' distinct behavior;
   sample comparison remains identical to baseline.
+- FULL-05 completed: added `Base.output_stem` (defaulting to `stem`) for cached processed reads
+  and saves; Telecom/Smp use a `_full` stem when requested while raw-cache loading remains
+  `{stem}_raw`. Tests cover shared raw reads, full output/discarded paths, and unchanged grouped
+  save names. Focused tests and grouped baseline comparison passed.

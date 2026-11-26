@@ -59,10 +59,10 @@ class Base:
     @cached_property
     def df(self) -> pd.DataFrame:
         try:
-            return self._read(self.stem)
+            return self._read(self.output_stem)
         except (ArrowInvalid, FileNotFoundError) as e:
             raise ValueError(
-                f"Não foi possível ler o arquivo parquet {self.stem}"
+                f"Não foi possível ler o arquivo parquet {self.output_stem}"
             ) from e
 
     @staticmethod
@@ -152,6 +152,10 @@ class Base:
     def stem(self):
         raise NotImplementedError("Subclasses devem setar a propriedade stem")
 
+    @property
+    def output_stem(self):
+        return self.stem
+
     def extraction(self) -> pd.DataFrame:
         raise NotImplementedError("Subclasses devem implementar o método extract")
 
@@ -175,5 +179,5 @@ class Base:
     def save(self, folder: str | Path | None = None):
         if folder is None:
             folder = self.folder
-        self._save(self.df, folder, self.stem)
-        self._save(self.discarded, folder, f"{self.stem}_discarded")
+        self._save(self.df, folder, self.output_stem)
+        self._save(self.discarded, folder, f"{self.output_stem}_discarded")
