@@ -120,7 +120,7 @@ class Radcom(Sitarweb):
         df.loc[~a, "Classe"] = df.loc[~a, "Fase"] + "-" + df.loc[~a, "Situação"]
         processing = "RADCOM: Classe=Fase-Situação."
         Base.register_log(df, processing, row_filter=~a)
-        df.drop(["Fase", "Situação"], axis=1, inplace=True)
+        df = df.drop(["Fase", "Situação"], axis=1)
 
         df["Frequência"] = pd.to_numeric(df["Frequência"], errors="coerce").astype(
             "float"
@@ -130,7 +130,7 @@ class Radcom(Sitarweb):
             processing = "Frequência Nula."
             Base.register_log(discarded, processing)
             self.append2discarded(discarded)
-        df.dropna(subset=["Frequência"], inplace=True)
+        df = df.dropna(subset=["Frequência"])
         return df.loc[:, self.columns]
 
 
@@ -158,7 +158,7 @@ class Stel(Sitarweb):
         df.loc[:, ["Largura_Emissão(kHz)", "_"]] = (
             df.Largura_Emissão.fillna("").apply(self.parse_bw).tolist()
         )
-        df.drop(["Largura_Emissão", "_"], axis=1, inplace=True)
+        df = df.drop(["Largura_Emissão", "_"], axis=1)
         df.loc[:, "Validade_RF"] = df.Validade_RF.astype("string").str.slice(0, 10)
         df["Frequência"] = pd.to_numeric(df["Frequência"], errors="coerce").astype(
             "float"
@@ -169,6 +169,6 @@ class Stel(Sitarweb):
         df.loc[df.Unidade == "GHz", "Frequência"] = df.loc[
             df.Unidade == "GHz", "Frequência"
         ].apply(lambda x: float(Decimal(x) * Decimal(1000)))
-        df.drop("Unidade", axis=1, inplace=True)
+        df = df.drop("Unidade", axis=1)
         df["Multiplicidade"] = "1"
         return df.loc[:, self.columns]

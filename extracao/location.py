@@ -24,7 +24,6 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 # Load environment variables from .env file
 load_dotenv(find_dotenv(), override=True)
-pd.options.mode.copy_on_write = True
 
 
 class Geography:
@@ -124,7 +123,7 @@ class Geography:
                 f"#{column}",
                 bad_coords,
             )
-            self.df.drop(columns=[f"#{column}"], inplace=True)
+            self.df = self.df.drop(columns=[f"#{column}"])
 
     def validate_codigo_municipio_as_number(self) -> None:
         self.df["Código_Município"] = (
@@ -147,7 +146,7 @@ class Geography:
             "#Código_Município",
             bad_codes,
         )
-        self.df.drop(columns=["#Código_Município"], inplace=True)
+        self.df = self.df.drop(columns=["#Código_Município"])
 
     def _replace_columns(
         self, columns, originals, row_filter, log=None, float_cols=False
@@ -170,7 +169,7 @@ class Geography:
             if log:
                 self.df[f"#{original}"] = self.df[original].fillna("")
                 Base.register_log(self.df, log, f"#{original}", col_filter)
-                self.df.drop(columns=[f"#{original}"], inplace=True)
+                self.df = self.df.drop(columns=[f"#{original}"])
             # Use of col_filter instead of rows to avoid float comparison
             self.df.loc[col_filter, original] = self.df.loc[col_filter, column]
 
@@ -272,7 +271,7 @@ class Geography:
             how="left",
         ).astype("string")
 
-        self.df.rename(
+        self.df = self.df.rename(
             columns={
                 "Latitude_x": "Latitude",
                 "Longitude_x": "Longitude",
@@ -282,8 +281,7 @@ class Geography:
                 "Latitude_y": "Latitude_IBGE",
                 "Longitude_y": "Longitude_IBGE",
                 "Município_y": "Município_IBGE",
-            },
-            inplace=True,
+            }
         )
 
     def fill_missing_coords(self) -> None:
@@ -354,14 +352,13 @@ class Geography:
         gdf_joined["LAT"] = gdf_joined.geometry.centroid.y.astype("string")
         gdf_joined["LON"] = gdf_joined.geometry.centroid.x.astype("string")
 
-        gdf_joined.drop(
+        gdf_joined = gdf_joined.drop(
             [
                 "geometry",
                 "AREA_KM2",
                 "index_right",
             ],
             axis=1,
-            inplace=True,
         )
 
         self.df = gdf_joined
@@ -447,7 +444,7 @@ class Geography:
             for col in logged_cols:
                 self.df[f"#{col}"] = self.df[col].astype("string").fillna("")
                 Base.register_log(self.df, msg, f"#{col}", row_filter)
-                self.df.drop(columns=[f"#{col}"], inplace=True)
+                self.df = self.df.drop(columns=[f"#{col}"])
 
             new_la_str = pd.Series(cand_lat[pt_i[confirmed]], index=fix_idx).astype(
                 "string"

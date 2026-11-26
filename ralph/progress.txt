@@ -62,3 +62,8 @@
   keeps original coordinates, and omits Multiplicidade. Full invariant sample: grouped downlink
   multiplicity 49,985 equals 49,985 eligible full rows. Focused tests, grouped comparison, and
   invariant checks passed with pandas deprecations promoted to errors.
+- User-requested pandas deprecation cleanup: replaced active `inplace=True` calls with assigned
+  results, removed deprecated `merge(copy=...)` arguments, and centralized legacy Copy-on-Write
+  enabling for pandas versions before 3 in `extracao/__init__.py`. The grouped sample comparison
+  and Telecom/SMP invariants pass with `Pandas4Warning` promoted to errors; full unittest
+  discovery reports only the two pre-existing failures above.

@@ -28,7 +28,6 @@ from ..constants import BW, RE_BW
 # %% ../../nbs/01b_base.ipynb #0b287ffa
 load_dotenv(find_dotenv(), override=True)
 tqdm.pandas()
-pd.options.mode.copy_on_write = True
 
 
 # %% ../../nbs/01b_base.ipynb #1f3fb56e

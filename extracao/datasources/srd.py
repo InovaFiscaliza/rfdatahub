@@ -27,7 +27,6 @@ from .mosaico import Mosaico
 
 # %% ../../nbs/01e_srd.ipynb #205a601a
 load_dotenv(find_dotenv(), override=True)
-pd.options.mode.copy_on_write = True
 
 # %% ../../nbs/01e_srd.ipynb #e3df6297
 MONGO_URI = os.environ.get("MONGO_URI")
@@ -123,8 +122,6 @@ class SRD(Mosaico):
         processing = "SRD: Status não considerado para fins de monitoração"
         Mosaico.register_log(discarded, processing, "Status")
         self.append2discarded(discarded)
-
-        df[status].reset_index(drop=True, inplace=True)
 
         # Discard null frequencies
         discarded = df[df.Frequência.isna()].copy()

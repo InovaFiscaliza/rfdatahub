@@ -22,7 +22,6 @@ load_dotenv(find_dotenv())
 
 # %% ../../nbs/01d_mosaico.ipynb #161bab63
 MONGO_URI: str = os.environ.get("MONGO_URI")
-pd.options.mode.copy_on_write = True
 
 
 # %% ../../nbs/01d_mosaico.ipynb #d4c0a4f3

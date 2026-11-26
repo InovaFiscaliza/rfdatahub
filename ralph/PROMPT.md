@@ -37,7 +37,8 @@ Produce, in the same run, two outputs:
   synced in a dedicated ticket (FULL-14), not in every ticket.
 - Python: always use `.venv/bin/python`. Tests use stdlib unittest (pytest is not installed):
   `.venv/bin/python -m unittest discover -s tests`
-- `pd.options.mode.copy_on_write = True` is set in every module. `Base.register_log` mutates
+- Pandas 3 enables Copy-on-Write by default. `extracao/__init__.py` enables it only for earlier
+  pandas versions; do not add per-module option assignments. `Base.register_log` mutates
   `df["Log"]` in place — never share one DataFrame object between the grouped and full pipelines.
 - Data caches live in `extracao/datasources/arquivos/saida/` (gitignored). Raw caches
   (`telecom_raw.parquet` ≈5.45M rows, `smp_raw.parquet` ≈2.38M rows, `srd_raw`, `stel_raw`,

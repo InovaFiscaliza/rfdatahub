@@ -26,7 +26,6 @@ from .location import Geography
 
 # %% ../nbs/04_estacoes.ipynb #8fd5dfd9
 load_dotenv(find_dotenv(), override=True)
-pd.options.mode.copy_on_write = True
 
 
 # %% ../nbs/04_estacoes.ipynb #4e245bed
@@ -118,8 +117,8 @@ class Estacoes(Base):
     @staticmethod
     def _remove_invalid_frequencies(df):
         df["Frequência"] = df["Frequência"].astype("float")
-        df.sort_values(
-            ["Frequência", "Latitude", "Longitude"], ignore_index=True, inplace=True
+        df = df.sort_values(
+            ["Frequência", "Latitude", "Longitude"], ignore_index=True
         )
         row_filter = df["Frequência"] > LIMIT_FREQ
         Base.register_log(

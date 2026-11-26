@@ -83,7 +83,7 @@ class AisWeb:
         dict_data = self._get_request("&util=", aero_util)
         if int(dict_data["aisweb"]["rotaer"]["@total"]) > 0:
             df = pd.json_normalize(dict_data["aisweb"]["rotaer"]["item"])
-            df.drop(["@ciad_id", "id", "ciad", "dt"], axis=1, inplace=True)
+            df = df.drop(["@ciad_id", "id", "ciad", "dt"], axis=1)
             # Remove os não aeródromos
             return df[df.type == "AD"].reset_index(drop=True)
 

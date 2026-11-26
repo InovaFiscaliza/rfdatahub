@@ -45,7 +45,6 @@ from extracao.constants import (
 MAX_DIST = 10  # Km
 LIMIT_FREQ = 84812.50
 load_dotenv(find_dotenv(), override=True)
-pd.options.mode.copy_on_write = True
 tqdm.pandas()
 
 
@@ -219,7 +218,6 @@ def merge_on_frequency(
             how="left",
             on=filter_left_cols,
             indicator=True,
-            copy=False,
         )
         .loc[lambda x: x["_merge"] == "left_only"]
         .iloc[:, range(len(original_cols))]
@@ -233,7 +231,6 @@ def merge_on_frequency(
             how="left",
             on=filter_right_cols,
             indicator=True,
-            copy=False,
         )
         .loc[lambda x: x["_merge"] == "left_only"]
         .iloc[:, range(len(original_cols))]
@@ -290,12 +287,12 @@ def cast2int(column: pd.Series) -> pd.Series:
 
 
 def cast2str(column: pd.Series) -> pd.Series:
-    column.replace("", "-1", inplace=True)
+    column = column.replace("", "-1")
     return column.astype("string").fillna("-1")
 
 
 def cast2cat(column: pd.Series) -> pd.Series:
-    column.replace("", "-1", inplace=True)
+    column = column.replace("", "-1")
     return column.fillna("-1").astype("category")
 
 
