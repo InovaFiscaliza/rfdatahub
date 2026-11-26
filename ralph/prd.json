@@ -269,8 +269,8 @@
       "verify": [
         "grep -n 'estacoes_full' README.md"
       ],
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed: README documents the full output, differences, CLI flags, intermediate files, and offline validation commands."
     }
   ]
 }

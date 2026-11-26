@@ -1924,6 +1924,43 @@ Os passos para validar as informações de localização são:
 - Além disso é retornado o nome padronizado do `Município` e suas
   coordenadas como registrado oficialmente no IBGE
 
+## Saída completa sem agrupamento
+
+O pipeline também gera `estacoes_full.parquet`, com os registros do
+Mosaico preservados sem o agrupamento que colapsa duplicatas. Ao
+contrário de `estacoes.parquet`, a saída completa mantém linhas que têm
+valores nulos nos campos usados para agrupamento, não inclui a coluna
+`Multiplicidade` e mantém `Log` na própria tabela como strings JSON com
+arrays de registros. A saída agrupada continua inalterada e usa
+`log.parquet` para armazenar os logs compartilhados.
+
+Os arquivos intermediários `telecom_full.parquet` e `smp_full.parquet`
+também preservam as linhas sem agrupamento e não incluem
+`Multiplicidade`. A coluna pode ser usada temporariamente no
+processamento, mas não é gravada nos arquivos completos.
+
+O comando `scripts/main.py` ativa o modo completo por padrão. Use
+`--no-full` para gerar somente a saída agrupada ou `--full` para ativá-lo
+explicitamente:
+
+```bash
+.venv/bin/python scripts/main.py --full
+.venv/bin/python scripts/main.py --no-full
+```
+
+O harness offline `scripts/full_pipeline_check.py` oferece comandos para
+gerar uma referência agrupada (`baseline`), compará-la (`compare`),
+executar e validar as saídas agrupada e completa (`full`) e verificar os
+invariantes de Telecom e SMP (`full-invariants`). Por exemplo, para
+processar uma amostra de 50.000 linhas:
+
+```bash
+.venv/bin/python scripts/full_pipeline_check.py baseline --sample 50000
+.venv/bin/python scripts/full_pipeline_check.py compare --sample 50000
+.venv/bin/python scripts/full_pipeline_check.py full --sample 50000
+.venv/bin/python scripts/full_pipeline_check.py full-invariants --sample 50000
+```
+
 ## Arquivo Final🗄️
 
 O Arquivo final disponibilizado para as atividades de monitoração é
