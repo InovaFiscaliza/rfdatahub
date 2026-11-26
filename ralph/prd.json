@@ -1,0 +1,276 @@
+{
+  "project": "rfdatahub",
+  "branchName": "feat/full-pipeline",
+  "description": "Add an ungrouped ('full') processing path for MOSAICO Telecom/SMP so the run saves estacoes_full.parquet (Log inline) alongside the unchanged grouped estacoes.parquet + log.parquet.",
+  "decisions": [
+    "D1: Grouped outputs (telecom.parquet, smp.parquet, estacoes.parquet, log.parquet) must remain content-identical to the pre-change code. This is enforced by a baseline snapshot (FULL-01) and a comparison harness (FULL-02).",
+    "D2: 'Full' = skip only the row-collapsing groupby in Mosaico.aggregate. Every other step stays: rename, split_designacao (explode), Estação int cast + sort, Largura numeric cast, SMP channel validation (the groupby in Smp.validate_channels is a lookup de-dup over channel intervals, NOT row aggregation — keep it), uplink generation, coordinate handling, merge_on_frequency with aero, Geography.validate, _simplify_sources, _remove_invalid_frequencies, '-1' sentinel fill.",
+    "D3: Omit Multiplicidade from the consolidated and per-source full output dataframes and files; it may temporarily be set to 1 internally where existing processing requires it. Grouped outputs retain their existing Multiplicidade. Full mode writes no '#Estação' grouping log entry.",
+    "D4: Grouped mode silently drops rows having NA in any agg column (dropna(subset=agg_cols)). Full mode KEEPS those rows (it is the full data). Downstream SMP steps may still drop them (e.g. NA Frequência never matches a Downlink channel) — that is acceptable; do not add new logging for it. If the user later wants parity, it is a one-line dropna in Mosaico.ungrouped.",
+    "D5: Full-mode files: telecom_full.parquet, smp_full.parquet, telecom_full_discarded.parquet, smp_full_discarded.parquet, estacoes_full.parquet. Raw caches are shared: full sources read telecom_raw / smp_raw (never *_full_raw).",
+    "D6: estacoes_full.parquet has the grouped column set (COLS_SRD) except Multiplicidade, and dtypes 'category' like estacoes.parquet, except 'Log' which holds the merge_dicts JSON string per row (not an integer id). Full mode must NEVER write/overwrite log.parquet.",
+    "D7: Estacoes(full=False) is the default (library behaviour unchanged). scripts/main.py get_db exposes --full and defaults it to True so the production run produces both outputs.",
+    "D8: The full run reuses the already-formatted SRD, Stel, Radcom and Aero dataframes from the grouped run (they never group), passed as independent copies; only Telecom and Smp are re-formatted in full mode from their raw cache."
+  ],
+  "userStories": [
+    {
+      "id": "FULL-01",
+      "title": "Create offline regression harness and baseline snapshot of current grouped outputs",
+      "priority": 1,
+      "dependsOn": [],
+      "description": "Before touching pipeline code, freeze the current grouped behaviour. Create scripts/full_pipeline_check.py (typer CLI) with a `baseline` command that, fully offline from the caches in extracao/datasources/arquivos/saida/: (1) runs Telecom(read_cache=True).update() and Smp(read_cache=True).update() (these read *_raw.parquet via Mosaico._extract), (2) runs SRD/Stel/Radcom with read_cache=True .update(), (3) loads Aero from aero.parquet via Aero().df (Aero.extraction ignores read_cache and hits the network — never call Aero.update()), (4) builds an Estacoes(read_cache=True) instance, injects those dfs in the same order as Estacoes.init_data_sources ([telecom, smp, srd, stel, radcom, aero]) and calls its _format with an fastcore L of the dfs, with Estacoes.folder pointing at the output dir so log.parquet lands there. Write telecom.parquet, smp.parquet, estacoes.parquet, log.parquet into a gitignored dir passed as --out (default extracao/datasources/arquivos/baseline/). Add a `--sample N` option that truncates telecom_raw/smp_raw to the first N rows (patch the source's _read or pre-slice) for fast iterations; a sampled baseline goes to <out>/sample_<N>/. Add the baseline dir to .gitignore if not already covered (*.parquet already is, but ignore the dir explicitly).",
+      "acceptanceCriteria": [
+        "`.venv/bin/python scripts/full_pipeline_check.py baseline --sample 50000` finishes offline and writes 4 parquet files under extracao/datasources/arquivos/baseline/sample_50000/",
+        "Running it twice yields identical files content-wise (verify with pandas.testing.assert_frame_equal) — proves determinism; if not deterministic, document the source of nondeterminism in progress.txt and sort by all columns before comparing",
+        "`.venv/bin/python scripts/full_pipeline_check.py baseline` (full cache, may take long — run with a generous timeout, it is allowed to take 30+ min) writes the full baseline under extracao/datasources/arquivos/baseline/",
+        "No changes to extracao/ package code in this ticket",
+        "Record row counts of each baseline file and wall-clock time of the full run in progress.txt"
+      ],
+      "verify": [
+        ".venv/bin/python scripts/full_pipeline_check.py baseline --sample 50000",
+        ".venv/bin/python scripts/full_pipeline_check.py baseline"
+      ],
+      "passes": true,
+      "notes": "Baselines were generated after the user fixed the pandas/NumPy string cast in extracao/datasources/mosaico.py. At baseline time that fix was uncommitted (file SHA-256 d06e2f2988b2c735a06ef631f50201ee10047f9faf7da9f02f5f12e36ae184d0); preserve it when reproducing the snapshot. Full baseline: 623.7s, telecom 714093, smp 324519, estacoes 1142170, log 108753 rows. Sample 50000: telecom 11924, smp 16268, estacoes 136043, log 5024; two independent runs were equal by pandas.testing.assert_frame_equal."
+    },
+    {
+      "id": "FULL-02",
+      "title": "Add `compare` command to the harness",
+      "priority": 2,
+      "dependsOn": ["FULL-01"],
+      "description": "Add a `compare` command to scripts/full_pipeline_check.py that re-runs the same grouped pipeline (same --sample option) into a temp dir and compares each of telecom/smp/estacoes/log against the baseline with pandas.testing.assert_frame_equal (check_dtype=True, check_categorical=False is acceptable only if category order differs — prefer exact). Exit code 0 on equality, non-zero with a diff summary (shape, columns, first differing rows) otherwise.",
+      "acceptanceCriteria": [
+        "`compare --sample 50000` exits 0 on unmodified code",
+        "Deliberately perturbing one value in a temp copy (unit-level sanity: e.g. a small helper test) makes the comparator report a difference — keep this as a quick test in tests/test_full_pipeline_check.py that exercises the comparison function on tiny in-memory frames (no data files)"
+      ],
+      "verify": [
+        ".venv/bin/python scripts/full_pipeline_check.py compare --sample 50000",
+        ".venv/bin/python -m unittest tests.test_full_pipeline_check"
+      ],
+      "passes": false,
+      "notes": "Every later ticket that touches pipeline code re-runs `compare --sample 50000` as its regression gate."
+    },
+    {
+      "id": "FULL-03",
+      "title": "Split Mosaico.aggregate into shared preparation + grouping (pure refactor)",
+      "priority": 3,
+      "dependsOn": ["FULL-02"],
+      "description": "In extracao/datasources/mosaico.py extract the non-grouping prefix of Mosaico.aggregate (Estação astype string → fillna('-1') → astype int errors=ignore; sort_values('Estação', ignore_index=True); Largura_Emissão(kHz) pd.to_numeric errors=coerce) into a new staticmethod `Mosaico._prepare_rows(df) -> pd.DataFrame`. aggregate() calls it first and then does exactly what it does today. Zero behaviour change.",
+      "acceptanceCriteria": [
+        "aggregate() output identical: `compare --sample 50000` exits 0",
+        "Existing unit tests unchanged in status (only the 2 known pre-existing failures)"
+      ],
+      "verify": [
+        ".venv/bin/python scripts/full_pipeline_check.py compare --sample 50000",
+        ".venv/bin/python -m unittest discover -s tests"
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FULL-04",
+      "title": "Add Mosaico.ungrouped (no-groupby counterpart of aggregate)",
+      "priority": 4,
+      "dependsOn": ["FULL-03"],
+      "description": "Add staticmethod `Mosaico.ungrouped(df) -> pd.DataFrame` in mosaico.py: calls _prepare_rows(df), sets df['Multiplicidade'] = 1 (int) temporarily for existing SMP processing, resets index, returns. Full source and consolidated outputs must omit this temporary column (D3). No dropna (decision D4), no '#Estação' column, no register_log call (D3). Also add a module-level/class helper `Mosaico.collapse(df, agg_cols, log, aggregate: bool)` OR simply let callers branch — pick the simplest; callers are Telecom._format and Smp._format.",
+      "acceptanceCriteria": [
+        "New unit tests in tests/test_full_mode.py using a tiny synthetic df (3-5 rows, two rows identical on AGG_LICENCIAMENTO but different Estação, one row with NA Latitude): aggregate() returns fewer rows with Multiplicidade>1 and a '#Estação' log; ungrouped() returns all rows, Multiplicidade all 1, Log unchanged ('[]'), rows sorted by Estação, Largura_Emissão(kHz) numeric",
+        "`compare --sample 50000` still exits 0"
+      ],
+      "verify": [
+        ".venv/bin/python -m unittest tests.test_full_mode",
+        ".venv/bin/python scripts/full_pipeline_check.py compare --sample 50000"
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FULL-05",
+      "title": "Add `full` flag and output stem to Base/Mosaico sources",
+      "priority": 5,
+      "dependsOn": ["FULL-04"],
+      "description": "Introduce an output-stem concept so full sources save to *_full files while still reading the shared raw cache (D5). In Base add property `output_stem` defaulting to `self.stem`; make Base.save and Base.df (cached_property read) use output_stem; Base.update keeps saving raw as f'{self.stem}_raw' (unchanged). In Telecom.__init__ and Smp.__init__ add keyword `full: bool = False` stored as self.full, and override output_stem to return f'{self.stem}_full' when self.full. Mosaico._extract keeps reading f'{self.stem}_raw'. Keep positional-arg order of existing constructors unchanged (Estacoes calls Telecom(mongo_uri, limit, read_cache) positionally) — add `full` last.",
+      "acceptanceCriteria": [
+        "Telecom(read_cache=True, full=True).output_stem == 'telecom_full'; .stem == 'telecom'; same for Smp",
+        "In full mode, update() with read_cache=True reads telecom_raw (assert via patch of _read, like tests/test_mosaico_cache.py) and save() writes telecom_full.parquet and telecom_full_discarded.parquet into source.folder (tempdir)",
+        "Default (full=False) save paths unchanged; tests/test_mosaico_cache.py still passes",
+        "`compare --sample 50000` exits 0"
+      ],
+      "verify": [
+        ".venv/bin/python -m unittest tests.test_full_mode tests.test_mosaico_cache",
+        ".venv/bin/python scripts/full_pipeline_check.py compare --sample 50000"
+      ],
+      "passes": false,
+      "notes": "SRD, Stel, Radcom, Aero do not get the flag (they never group)."
+    },
+    {
+      "id": "FULL-06",
+      "title": "Telecom full-mode _format",
+      "priority": 6,
+      "dependsOn": ["FULL-05"],
+      "description": "In extracao/datasources/telecom.py, _format uses self.ungrouped(df) instead of self.aggregate(df, AGG_LICENCIAMENTO, ...) when self.full; rename, split_designacao and Fonte='MOSAICO-LICENCIAMENTO' stay identical. Select COLS_STEL except Multiplicidade for full mode; grouped mode continues to select all COLS_STEL.",
+      "acceptanceCriteria": [
+        "Unit test on synthetic raw-shaped df (columns per DICT_LICENCIAMENTO keys) run through Telecom(full=True)._format: duplicates on AGG_LICENCIAMENTO are kept, Multiplicidade is absent, columns equal COLS_STEL without Multiplicidade; verify it is absent after saving and reading telecom_full.parquet",
+        "On the sample cache: len(Telecom full) >= len(Telecom grouped) and sum(grouped Multiplicidade) == number of full rows having all AGG_LICENCIAMENTO columns non-NA (the core invariant of 'no groupby'). Add this check to the harness as `full-invariants --sample N` (it will be extended by later tickets)",
+        "`compare --sample 50000` exits 0"
+      ],
+      "verify": [
+        ".venv/bin/python -m unittest tests.test_full_mode",
+        ".venv/bin/python scripts/full_pipeline_check.py full-invariants --sample 50000",
+        ".venv/bin/python scripts/full_pipeline_check.py compare --sample 50000"
+      ],
+      "passes": false,
+      "notes": "Note: Telecom.extraction sets df['Log']='' after _extract (pre-existing, register_log normalises it). Leave as is."
+    },
+    {
+      "id": "FULL-07",
+      "title": "Smp full-mode _format",
+      "priority": 7,
+      "dependsOn": ["FULL-06"],
+      "description": "In extracao/datasources/smp.py, _format uses self.ungrouped(df) instead of self.aggregate(df, AGG_SMP, ...) when self.full. Keep validate_channels, generate_uplink, substitute_coordinates, input_fixed_columns. In full mode substitute_coordinates is naturally a no-op on coordinates (temporary Multiplicidade==1) but still merges IBGE columns — keep it so other output columns/dtypes match; optionally skip the replacement block when self.full for speed, but output must be identical either way. After processing, select COLS_STEL without Multiplicidade for full mode; grouped mode continues to select all COLS_STEL.",
+      "acceptanceCriteria": [
+        "Unit test with a synthetic SMP df (2 rows identical on AGG_SMP, valid downlink frequency e.g. one present in CHANNELS file): full mode keeps both rows plus their generated uplink rows (Classe 'ML', Fonte 'CANALIZACAO-SMP'); Latitude/Longitude are the originals (no 'Agrupamento: Latitude do Município inserida' log), output columns equal COLS_STEL without Multiplicidade, and the column remains absent after saving and reading smp_full.parquet",
+        "Sample invariant added to `full-invariants`: sum(grouped smp Multiplicidade over Fonte=='MOSAICO-LICENCIAMENTO') == count of full smp rows with Fonte=='MOSAICO-LICENCIAMENTO' whose AGG_SMP cols are all non-NA (if this fails due to channel validation of NA rows, document the exact delta and why in progress.txt rather than forcing it)",
+        "`compare --sample 50000` exits 0"
+      ],
+      "verify": [
+        ".venv/bin/python -m unittest tests.test_full_mode",
+        ".venv/bin/python scripts/full_pipeline_check.py full-invariants --sample 50000",
+        ".venv/bin/python scripts/full_pipeline_check.py compare --sample 50000"
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FULL-08",
+      "title": "Refactor Estacoes._format into a reusable consolidation step (pure refactor)",
+      "priority": 8,
+      "dependsOn": ["FULL-02"],
+      "description": "In extracao/stations.py split Estacoes._format into `_consolidate(self, dfs) -> pd.DataFrame` (everything from concat/merge_on_frequency/Geography.validate/_simplify_sources/_remove_invalid_frequencies/'-1' fill/astype('category'), WITHOUT process_log and column selection) and _format = _consolidate + process_log + loc[:, self.columns]. Fix the input mutation: `_format` currently does `dfs.pop()` on the passed L — _consolidate must not mutate its argument (use dfs[-1] and dfs[:-1]) so the same source dfs can feed the full run.",
+      "acceptanceCriteria": [
+        "`compare --sample 50000` exits 0",
+        "Unit test: calling _consolidate twice with the same L of tiny frames leaves the L length unchanged"
+      ],
+      "verify": [
+        ".venv/bin/python scripts/full_pipeline_check.py compare --sample 50000",
+        ".venv/bin/python -m unittest tests.test_full_mode"
+      ],
+      "passes": false,
+      "notes": "Independent of FULL-03..07; can be done in any order after FULL-02."
+    },
+    {
+      "id": "FULL-09",
+      "title": "Inline log formatting helper for the full output",
+      "priority": 9,
+      "dependsOn": ["FULL-08"],
+      "description": "Add Estacoes.inline_log(df) (staticmethod) that sets df['Log'] = df['Log'].astype('string').progress_apply(merge_dicts) and returns df — the same per-row merge that process_log does, but keeping the JSON string inline and writing NO file (D6). Must handle the '-1' sentinel that _consolidate's fillna may introduce (map '-1' / NA → '[]') without changing process_log behaviour.",
+      "acceptanceCriteria": [
+        "Unit test: for the same input df, json.loads(inline_log(df.copy())['Log'][i]) equals json.loads(log.parquet row referenced by process_log(df.copy())['Log'][i]) for every row (tempdir folder)",
+        "inline_log never creates log.parquet (assert file absent in tempdir)"
+      ],
+      "verify": [
+        ".venv/bin/python -m unittest tests.test_full_mode"
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FULL-10",
+      "title": "Estacoes full run: build df_full from full Telecom/Smp + reused other sources",
+      "priority": 10,
+      "dependsOn": ["FULL-07", "FULL-09"],
+      "description": "Add keyword `full: bool = False` (last param) to Estacoes.__init__. Add method `update_full(self)` that: (1) creates Telecom(self.mongo_uri, self.limit, read_cache=True, full=True) and Smp(..., full=True) with the same folder as the grouped sources — raw caches were just written by the grouped update (or exist when read_cache) — and runs update()+save() on each (parallel like extraction when self.parallel, using Estacoes._update_source); when read_cache and not reprocess_sources, just read their .df (telecom_full.parquet/smp_full.parquet) instead; (2) takes SRD/Stel/Radcom/Aero dfs from self.sources (index 2..5) as `.copy()` (D8); (3) df = self._consolidate(L([telecom_full, smp_full, srd, stel, radcom, aero])); (4) df = self.inline_log(df); (5) self.df_full selects self.columns except Multiplicidade. Other sources may reintroduce Multiplicidade during concat, so exclude it from the final full dataframe regardless. update() calls update_full() after the grouped path when self.full. Order matters: grouped self.df must be computed before update_full, and update_full must not alter self.df or the dfs inside self.sources (mutation via register_log!).",
+      "acceptanceCriteria": [
+        "Harness gets a `full` command (same --sample option, same offline injection trick as baseline: Aero from aero.parquet) that runs grouped + full and writes estacoes.parquet, log.parquet, estacoes_full.parquet to a temp/out dir",
+        "`full --sample 50000`: grouped outputs still equal the baseline (reuse the compare function), estacoes_full columns equal COLS_SRD without Multiplicidade, every Log value is a JSON array string (json.loads returns a list), len(full) >= len(grouped)",
+        "Unit tests still pass"
+      ],
+      "verify": [
+        ".venv/bin/python scripts/full_pipeline_check.py full --sample 50000",
+        ".venv/bin/python -m unittest discover -s tests"
+      ],
+      "passes": false,
+      "notes": "merge_on_frequency computes a geodesic per joined row with Aero — on full data this is the main scaling risk; measured in FULL-12."
+    },
+    {
+      "id": "FULL-11",
+      "title": "Persist estacoes_full.parquet in Estacoes.save",
+      "priority": 11,
+      "dependsOn": ["FULL-10"],
+      "description": "Estacoes inherits Base.save (writes self.df to estacoes.parquet and self.discarded to estacoes_discarded.parquet). Override/extend so that when self.full and hasattr(self, 'df_full'), it also writes estacoes_full.parquet via self._save(self.df_full, folder, 'estacoes_full'). Base._save casts everything to category — keep that (consistent with estacoes.parquet). Grouped save unchanged; log.parquet only written by process_log (grouped).",
+      "acceptanceCriteria": [
+        "Unit test with a stub Estacoes (patch update/sources, set df/df_full on tiny frames, tempdir folder): save() writes estacoes.parquet and estacoes_full.parquet; with full=False only estacoes.parquet (+discarded)",
+        "estacoes_full.parquet read back: Multiplicidade is absent and Log column dtype is string/category of JSON strings (not ints); grouped estacoes.parquet retains Multiplicidade"
+      ],
+      "verify": [
+        ".venv/bin/python -m unittest tests.test_full_mode"
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "FULL-12",
+      "title": "Full-cache end-to-end run, measure, and fix scaling blockers without changing grouped output",
+      "priority": 12,
+      "dependsOn": ["FULL-11"],
+      "description": "Run `full_pipeline_check.py full` on the full cache (no --sample). Expected sizes: telecom_raw 5.45M rows (exploded by split_designacao), smp_raw 2.38M (+ uplink rows) → estacoes_full roughly 10M rows vs 1.14M grouped. Record wall time and peak RSS (/usr/bin/time -v) in progress.txt. Known hot spots to check if too slow/OOM: Base.register_log + Base.format_log use eval()+progress_apply per logged row; merge_on_frequency geodesic per row (only rows joining with Aero frequencies); merge_dicts per row in inline_log; Base._save astype('category'). Only optimize if the full run does not complete in a reasonable time (> ~2h) or OOMs; any optimization must keep `compare` (full cache) green. Typical safe win: in inline_log, merge_dicts only unique Log strings (factorize → apply on uniques → take), identical result.",
+      "acceptanceCriteria": [
+        "`full_pipeline_check.py full` completes on full cache; grouped outputs equal full baseline; full-invariants pass on full cache",
+        "progress.txt has timings, RSS, and row counts of estacoes_full vs estacoes"
+      ],
+      "verify": [
+        "/usr/bin/time -v .venv/bin/python scripts/full_pipeline_check.py full",
+        ".venv/bin/python scripts/full_pipeline_check.py compare"
+      ],
+      "passes": false,
+      "notes": "If blocked by memory, document it and propose (not implement) chunked processing in notes; mark blocked rather than rewriting merge_on_frequency."
+    },
+    {
+      "id": "FULL-13",
+      "title": "Expose --full in scripts/main.py",
+      "priority": 13,
+      "dependsOn": ["FULL-11"],
+      "description": "Add `full: bool = True` parameter to get_db in scripts/main.py and pass it to Estacoes (keyword, since the constructor call is positional today: Estacoes(SQLSERVER_PARAMS, MONGO_URI, limit, parallel, read_cache, reprocess_sources, full=full)). Do not touch the commented-out release code beyond, optionally, adding estacoes_full.parquet next to estacoes.parquet in the commented file lists.",
+      "acceptanceCriteria": [
+        "`.venv/bin/python scripts/main.py --help` shows --full/--no-full",
+        "No other behaviour change"
+      ],
+      "verify": [
+        ".venv/bin/python scripts/main.py --help"
+      ],
+      "passes": false,
+      "notes": "main.py reads SQL_TIMEOUT from env at import; --help may need .env present (it is)."
+    },
+    {
+      "id": "FULL-14",
+      "title": "Mirror code changes into the nbdev notebooks",
+      "priority": 14,
+      "dependsOn": ["FULL-11"],
+      "description": "Modules are source of truth; notebooks nbs/01b_base.ipynb, nbs/01d_mosaico.ipynb, nbs/01f_telecom.ipynb, nbs/01g_smp.ipynb, nbs/04_estacoes.ipynb must contain the same code. Try `.venv/bin/nbdev-update` (syncs .py → notebooks via the '# %% ../../nbs/<nb>.ipynb #<cellid>' markers). New functions must live inside existing marked cells (they do if added inside the existing class/cell); if nbdev-update cannot place something, edit the notebook cell source by hand (json) to match. Add a short markdown cell in 01d_mosaico explaining aggregate vs ungrouped.",
+      "acceptanceCriteria": [
+        "`.venv/bin/nbdev-export` followed by `git diff --stat extracao/` shows no changes to the .py modules (round-trip is clean), except possibly whitespace-free no-ops",
+        "Notebooks are valid JSON and open"
+      ],
+      "verify": [
+        ".venv/bin/nbdev-update && .venv/bin/nbdev-export && git diff --exit-code extracao/"
+      ],
+      "passes": false,
+      "notes": "If nbdev-export rewrites modules in an unexpected way, revert the module changes (git checkout extracao/) and fix notebooks manually instead — modules win."
+    },
+    {
+      "id": "FULL-15",
+      "title": "Document the full output",
+      "priority": 15,
+      "dependsOn": ["FULL-13"],
+      "description": "Update README.md (and the 04_estacoes notebook markdown if it describes outputs) with: what estacoes_full.parquet is, how it differs from estacoes.parquet (no Mosaico groupby, no Multiplicidade column, Log inline as JSON, rows with NA in grouping columns kept), the per-source *_full.parquet files also omit Multiplicidade, the --full CLI flag, and the scripts/full_pipeline_check.py harness (baseline/compare/full/full-invariants).",
+      "acceptanceCriteria": [
+        "README section present and accurate against the code"
+      ],
+      "verify": [
+        "grep -n 'estacoes_full' README.md"
+      ],
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

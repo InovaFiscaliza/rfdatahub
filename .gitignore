@@ -155,6 +155,7 @@ checklink/cookies.txt
 
 # output folder
 extracao/datasources/arquivos/saida
+extracao/datasources/arquivos/baseline
 
 # VSCODE Files
 .virtual_documents

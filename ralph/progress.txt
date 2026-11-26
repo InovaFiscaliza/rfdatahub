@@ -1,0 +1,40 @@
+## Codebase patterns (read first; append new ones as you learn them)
+
+- Grouping lives only in Mosaico.aggregate (extracao/datasources/mosaico.py); called by
+  Telecom._format (AGG_LICENCIAMENTO) and Smp._format (AGG_SMP, before validate_channels).
+- aggregate() side effects besides grouping: Estação → int + sort, Largura numeric,
+  dropna(subset=agg_cols), Multiplicidade = group size, '#Estação' log for Multiplicidade>1.
+- Smp.substitute_coordinates only replaces coords where Multiplicidade > 1.
+- Full outputs omit Multiplicidade; a temporary value of 1 may still be needed internally
+  for existing SMP processing. Grouped outputs retain their existing Multiplicidade.
+- Estacoes._format pops aero (last) from the L it receives — mutates input.
+- Estacoes.process_log writes {folder}/log.parquet and replaces Log by integer ids.
+- Base.register_log mutates df['Log'] in place (eval + progress_apply per row: slow on big frames).
+- Mosaico._extract(read_cache=True) reads f'{stem}_raw.parquet' and resets Log to '[]'.
+- Aero.extraction ignores read_cache and calls external APIs: offline, use Aero().df (aero.parquet).
+- Cache sizes: telecom_raw 5.45M rows → telecom 714k; smp_raw 2.38M → smp 325k;
+  estacoes 1.14M rows; log 109k unique logs.
+- Tests: .venv/bin/python -m unittest discover -s tests (no pytest). 2 known pre-existing failures
+  (see PROMPT.md).
+
+## Iteration log
+
+- Requirement update: omit Multiplicidade from full output schemas, including per-source full
+  files; keep grouped schemas and values unchanged.
+- FULL-01 attempt: added `scripts/full_pipeline_check.py` and explicitly ignored the baseline
+  directory. CLI command registration is fixed. Sample execution is blocked before any output
+  parquet is written: `Mosaico.aggregate` calls `.values.astype("string")` on a NumPy ndarray,
+  which raises `TypeError: data type 'string' not understood` under installed pandas 3.1.1 /
+  NumPy 2.5.5. FULL-01 explicitly forbids package changes, so it remains `passes: false`.
+  Add a separate compatibility prerequisite, then retry sample and full baselines. No baseline
+  row counts or timings were produced.
+- FULL-01 completed after the user fixed the string cast in `extracao/datasources/mosaico.py`.
+  The fix was uncommitted at baseline time; file SHA-256:
+  d06e2f2988b2c735a06ef631f50201ee10047f9faf7da9f02f5f12e36ae184d0.
+  Preserve that fix to reproduce the baseline. Full run: 623.7 seconds; telecom 714,093,
+  smp 324,519, estacoes 1,142,170, log 108,753 rows. Sample of 50,000 raw rows per
+  source: 11,924, 16,268, 136,043 and 5,024 rows respectively. Two independent sample
+  runs matched exactly using `pandas.testing.assert_frame_equal`. The harness checks cached
+  inputs and shapefile components before processing to prevent Geography from downloading or
+  replacing files when local components are missing. The only saved baseline files are the
+  four requested outputs; non-Mosaico sources are processed from cache but not saved.
