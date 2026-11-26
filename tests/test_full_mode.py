@@ -255,5 +255,36 @@ class StationConsolidationTests(unittest.TestCase):
         pd.testing.assert_frame_equal(first, second)
 
 
+class InlineLogTests(unittest.TestCase):
+    def test_inline_log_matches_process_log_and_handles_empty_sentinels(self):
+        logs = [
+            "[]",
+            '[{"Log":"source","Coluna":"Latitude","Original":"-23"}]',
+            '[{"Log":"source","Coluna":"Latitude","Original":"-24"}]',
+        ]
+        df = pd.DataFrame({"Log": logs}, dtype="string")
+        stations = Estacoes(read_cache=True)
+
+        with tempfile.TemporaryDirectory() as folder:
+            stations.folder = Path(folder)
+            processed = stations.process_log(df.copy())
+            cached_logs = pd.read_parquet(Path(folder) / "log.parquet")
+
+        with tempfile.TemporaryDirectory() as folder:
+            stations.folder = Path(folder)
+            inline = Estacoes.inline_log(df.copy())
+            for index, label in enumerate(processed["Log"]):
+                self.assertEqual(
+                    json.loads(inline.loc[index, "Log"]),
+                    json.loads(cached_logs.loc[label, "Log"]),
+                )
+            sentinel_logs = pd.DataFrame(
+                {"Log": pd.Series(["-1", pd.NA], dtype="string")}
+            )
+            sentinels = Estacoes.inline_log(sentinel_logs)
+            self.assertEqual(sentinels["Log"].tolist(), ["[]", "[]"])
+            self.assertFalse((Path(folder) / "log.parquet").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

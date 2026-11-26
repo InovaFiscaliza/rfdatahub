@@ -71,3 +71,6 @@
   processing and output-column selection in `_format`. A focused test consolidates the same
   source list twice and verifies its length and frames are unchanged. Targeted tests and the
   50,000-row grouped baseline comparison passed.
+- FULL-09 completed: added `Estacoes.inline_log` to merge log JSON without factorizing the
+  column or writing `log.parquet`; null and `-1` sentinels become empty JSON arrays. Tests verify
+  parity with the grouped log cache and that inline formatting creates no file.

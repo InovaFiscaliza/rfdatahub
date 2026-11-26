@@ -138,6 +138,12 @@ class Estacoes(Base):
         df["Log"] = pd.to_numeric(labels, downcast="integer")
         return df
 
+    @staticmethod
+    def inline_log(df):
+        log = df["Log"].astype("string").replace({"-1": "[]"}).fillna("[]")
+        df["Log"] = log.progress_apply(merge_dicts)
+        return df
+
     def _consolidate(self, dfs: L) -> pd.DataFrame:
         aero = dfs[-1]
         anatel = pd.concat(dfs[:-1], ignore_index=True).astype("string")

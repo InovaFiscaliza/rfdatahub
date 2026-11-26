@@ -171,8 +171,8 @@
       "verify": [
         ".venv/bin/python -m unittest tests.test_full_mode"
       ],
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed: inline_log merges log JSON in place, maps null/-1 sentinels to empty arrays, and does not write log.parquet. Parity with process_log is covered by a focused test."
     },
     {
       "id": "FULL-10",
