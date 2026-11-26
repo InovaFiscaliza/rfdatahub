@@ -4,14 +4,14 @@
 #     "altair>=6.0.0",
 #     "folium>=1.0.0",
 #     "geopandas>=1.0.0",
-#     "marimo>=0.25.0",
+#     "marimo>=0.26.0",
 #     "numpy>=2.0.0",
 #     "pandas>=2.2.0",
 #     "pyarrow>=18.0.0",
 #     "pyogrio>=0.10.0",
 #     "shapely>=2.0.0",
 # ]
-# 
+#
 # [tool.marimo.runtime]
 # output_max_bytes = 50_000_000
 # ///
@@ -48,7 +48,7 @@ def _(DATA_DIR, estacoes_mtime_str, estacoes_size_mb, log_size_mb):
     1. **Visão Geral & Completude do Esquema** — volume consolidado vs. emissores físicos (`Multiplicidade`), preenchimento por coluna e sentinelas `"-1"`.
     2. **Espectro, Serviços, Fontes & Operadoras** — distribuição por faixas de frequência, serviços Anatel/Aero, UFs e principais entidades licenciadas.
     3. **Explorador Estruturado de `log.parquet`** — desaninhamento dos templates JSON fatorados, fluxos de processamento (`Pipeline`), deslocamento ERB → município no SMP e inspeção antes/depois.
-    4. **Investigação Especial — Coordenadas Divergentes (`IBGE_COORD_DIVERGENTE`)** — diagnóstico geoespacial das estações cujas coordenadas originais caíam em outro polígono municipal do IBGE (amplificação por múltiplos canais, efeito de fronteira/topo de serra vs. erros cadastrais e mapa antes → depois).
+    4. **Investigação Especial — Coordenadas Divergentes (`IBGE_COORD_DIVERGENTE`)** — diagnóstico geoespacial das estações cujas coordenadas caem em outro polígono municipal do IBGE (apenas registrado no `Log`; coordenadas preservadas), com amplificação por múltiplos canais, efeito de fronteira/topo de serra vs. erros cadastrais e mapa coordenada → centroide declarado.
     5. **Auditoria de Qualidade Residual & Mapa Interativo Folium** — anomalias remanescentes pós-processamento com inspeção individual de estações.
     """)
     return
@@ -58,9 +58,33 @@ def _(DATA_DIR, estacoes_mtime_str, estacoes_size_mb, log_size_mb):
 def _():
     OFFICIAL_UFS = frozenset(
         {
-            "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO",
-            "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR",
-            "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
+            "AC",
+            "AL",
+            "AM",
+            "AP",
+            "BA",
+            "CE",
+            "DF",
+            "ES",
+            "GO",
+            "MA",
+            "MG",
+            "MS",
+            "MT",
+            "PA",
+            "PB",
+            "PE",
+            "PI",
+            "PR",
+            "RJ",
+            "RN",
+            "RO",
+            "RR",
+            "RS",
+            "SC",
+            "SE",
+            "SP",
+            "TO",
         }
     )
 
@@ -112,29 +136,83 @@ def _():
 
     # Section 4 regimes: code -> (color, description). Codes are produced by classify_divergent_regime().
     DIVERGENT_REGIME_META = {
-        "1_Micro_Fronteira_100m": ("#2b8cbe", "1. Micro-fronteira / Datum (≤ 100 m da divisa)"),
-        "2_Topo_Serra_Borda_1km": ("#4eb3d3", "2. Borda / Crista de Serra (100 m – 1 km da divisa)"),
-        "3_Limitrofe_1_10km": ("#fdae61", "3. Município Limítrofe Próximo (1 – 10 km da divisa)"),
-        "4_Limitrofe_Maior_10km": ("#f46d43", "4. Município Limítrofe Distante (> 10 km da divisa)"),
+        "1_Micro_Fronteira_100m": (
+            "#2b8cbe",
+            "1. Micro-fronteira / Datum (≤ 100 m da divisa)",
+        ),
+        "2_Topo_Serra_Borda_1km": (
+            "#4eb3d3",
+            "2. Borda / Crista de Serra (100 m – 1 km da divisa)",
+        ),
+        "3_Limitrofe_1_10km": (
+            "#fdae61",
+            "3. Município Limítrofe Próximo (1 – 10 km da divisa)",
+        ),
+        "4_Limitrofe_Maior_10km": (
+            "#f46d43",
+            "4. Município Limítrofe Distante (> 10 km da divisa)",
+        ),
         "5_Nao_Vizinho_Mesma_UF": ("#d73027", "5. Município Não-Vizinho na Mesma UF"),
-        "6_Outra_UF_Nao_Vizinho": ("#762a83", "6. Outra UF Não-Limítrofe (Erro Cadastral / Digitação)"),
+        "6_Outra_UF_Nao_Vizinho": (
+            "#762a83",
+            "6. Outra UF Não-Limítrofe (Erro Cadastral / Digitação)",
+        ),
     }
 
     # Section 5 residual issues: code -> (color, description). Codes are produced by classify_primary_issue().
     ISSUE_META = {
-        "01_Null_Island_ou_Polar_Invalido": ("#d62728", "Crítico: Null Island (0,0) ou Latitude Polar (±89°)"),
-        "02_Lat_Lon_Invertidas": ("#e31a1c", "Crítico: Latitude ↔ Longitude Trocadas (no Oceano)"),
-        "03_Sinal_Invertido_Hemisferio": ("#ff7f00", "Crítico: Sinal Invertido (Hemisfério Norte / Leste +Lon)"),
-        "04_Fora_Fronteira_Terrestre": ("#984ea3", "Alerta: Coordenada em País Vizinho / Fronteira"),
-        "05_Poligono_UF_Divergente": ("#e7298a", "Erro Geo: Ponto cai em OUTRA UF pelo Polígono IBGE"),
-        "06_Poligono_Municipio_Divergente": ("#f781bf", "Erro Geo: Ponto cai em OUTRO Município IBGE (mesma UF)"),
-        "07_Offshore_Maritimo_Ilhas": ("#1f78b4", "Contexto: Offshore / Pré-Sal / Costeiro (fora da malha terrestre)"),
-        "08_Texto_Sujo_Coluna_Numerica": ("#b15928", "Erro Tipo: Strings não normalizadas em Engenharia (vírgula/unidade)"),
-        "09_Outlier_Fisico_Antena_Torre": ("#a65628", "Alerta Físico: Azimute >360°, Elevação >90° ou Cota >3000m"),
-        "10_UF_Com_Espaco_ou_Divergente": ("#fdbf6f", "Erro String: UF com espaço ou divergente do IBGE"),
-        "11_Sem_Codigo_Municipio_ou_UF": ("#6a3d9a", "Incompleto: Código_Município ou UF == '-1'"),
-        "00_Sem_Coordenadas_-1": ("#7f7f7f", "Incompleto: Sem Latitude/Longitude ('-1', não plotável)"),
-        "00_OK_Consistente": ("#2ca02c", "OK: Coordenada consistente com Polígono IBGE"),
+        "01_Null_Island_ou_Polar_Invalido": (
+            "#d62728",
+            "Crítico: Null Island (0,0) ou Latitude Polar (±89°)",
+        ),
+        "02_Lat_Lon_Invertidas": (
+            "#e31a1c",
+            "Crítico: Latitude ↔ Longitude Trocadas (no Oceano)",
+        ),
+        "03_Sinal_Invertido_Hemisferio": (
+            "#ff7f00",
+            "Crítico: Sinal Invertido (Hemisfério Norte / Leste +Lon)",
+        ),
+        "04_Fora_Fronteira_Terrestre": (
+            "#984ea3",
+            "Alerta: Coordenada em País Vizinho / Fronteira",
+        ),
+        "05_Poligono_UF_Divergente": (
+            "#e7298a",
+            "Erro Geo: Ponto cai em OUTRA UF pelo Polígono IBGE",
+        ),
+        "06_Poligono_Municipio_Divergente": (
+            "#f781bf",
+            "Erro Geo: Ponto cai em OUTRO Município IBGE (mesma UF)",
+        ),
+        "07_Offshore_Maritimo_Ilhas": (
+            "#1f78b4",
+            "Contexto: Offshore / Pré-Sal / Costeiro (fora da malha terrestre)",
+        ),
+        "08_Texto_Sujo_Coluna_Numerica": (
+            "#b15928",
+            "Erro Tipo: Strings não normalizadas em Engenharia (vírgula/unidade)",
+        ),
+        "09_Outlier_Fisico_Antena_Torre": (
+            "#a65628",
+            "Alerta Físico: Azimute >360°, Elevação >90° ou Cota >3000m",
+        ),
+        "10_UF_Com_Espaco_ou_Divergente": (
+            "#fdbf6f",
+            "Erro String: UF com espaço ou divergente do IBGE",
+        ),
+        "11_Sem_Codigo_Municipio_ou_UF": (
+            "#6a3d9a",
+            "Incompleto: Código_Município ou UF == '-1'",
+        ),
+        "00_Sem_Coordenadas_-1": (
+            "#7f7f7f",
+            "Incompleto: Sem Latitude/Longitude ('-1', não plotável)",
+        ),
+        "00_OK_Consistente": (
+            "#2ca02c",
+            "OK: Coordenada consistente com Polígono IBGE",
+        ),
     }
 
     DEFAULT_MAP_ISSUES = [
@@ -181,8 +259,13 @@ def cat_to_float(s: pd.Series) -> np.ndarray:
 @app.function
 def haversine_km(lat1, lon1, lat2, lon2) -> np.ndarray:
     """Vectorized great-circle distance in km (NaN inputs propagate to NaN)."""
-    la1, lo1, la2, lo2 = (np.radians(np.asarray(v, dtype="float64")) for v in (lat1, lon1, lat2, lon2))
-    a = np.sin((la2 - la1) / 2.0) ** 2 + np.cos(la1) * np.cos(la2) * np.sin((lo2 - lo1) / 2.0) ** 2
+    la1, lo1, la2, lo2 = (
+        np.radians(np.asarray(v, dtype="float64")) for v in (lat1, lon1, lat2, lon2)
+    )
+    a = (
+        np.sin((la2 - la1) / 2.0) ** 2
+        + np.cos(la1) * np.cos(la2) * np.sin((lo2 - lo1) / 2.0) ** 2
+    )
     return 2.0 * 6371.0 * np.arcsin(np.sqrt(np.clip(a, 0.0, 1.0)))
 
 
@@ -191,7 +274,12 @@ def valid_wgs84_mask(lat, lon) -> np.ndarray:
     """True where (lat, lon) is a finite, plottable WGS84 coordinate."""
     lat = np.asarray(lat, dtype="float64")
     lon = np.asarray(lon, dtype="float64")
-    return (~np.isnan(lat)) & (~np.isnan(lon)) & (np.abs(lat) <= 90.0) & (np.abs(lon) <= 180.0)
+    return (
+        (~np.isnan(lat))
+        & (~np.isnan(lon))
+        & (np.abs(lat) <= 90.0)
+        & (np.abs(lon) <= 180.0)
+    )
 
 
 @app.function
@@ -201,7 +289,14 @@ def top_value(s: pd.Series) -> str:
 
 
 @app.function
-def summarize_by(frame: pd.DataFrame, by: str, *, sort: bool = True, observed: bool = True, **extra_aggs) -> pd.DataFrame:
+def summarize_by(
+    frame: pd.DataFrame,
+    by: str,
+    *,
+    sort: bool = True,
+    observed: bool = True,
+    **extra_aggs,
+) -> pd.DataFrame:
     """Group `frame` (which must contain an `Emissores` column) into Registros / Emissores_Fisicos (+ extra aggs)."""
     out = frame.groupby(by, observed=observed).agg(
         Registros=("Emissores", "size"),
@@ -229,7 +324,9 @@ def text_search_mask(frame: pd.DataFrame, columns: list[str], query: str) -> np.
         return np.ones(len(frame), dtype=bool)
     mask = np.zeros(len(frame), dtype=bool)
     for col in columns:
-        mask |= frame[col].astype(str).str.lower().str.contains(q, regex=False).to_numpy()
+        mask |= (
+            frame[col].astype(str).str.lower().str.contains(q, regex=False).to_numpy()
+        )
     return mask
 
 
@@ -237,7 +334,10 @@ def text_search_mask(frame: pd.DataFrame, columns: list[str], query: str) -> np.
 def kpi_row(items: list[tuple[str, str, str]]):
     """Row of equally sized `mo.stat` cards from (label, value, caption) tuples."""
     return mo.hstack(
-        [mo.stat(label=label, value=value, caption=caption) for label, value, caption in items],
+        [
+            mo.stat(label=label, value=value, caption=caption)
+            for label, value, caption in items
+        ],
         widths="equal",
     )
 
@@ -249,7 +349,9 @@ def meta_color_scale(meta: dict[str, tuple[str, str]]) -> alt.Scale:
 
 
 @app.function
-def format_distance(km: float, *, meters_below_1km: bool = True, decimals: int = 2) -> str:
+def format_distance(
+    km: float, *, meters_below_1km: bool = True, decimals: int = 2
+) -> str:
     """Human-readable distance ('N/A' for NaN, meters below 1 km when enabled)."""
     if km is None or pd.isna(km):
         return "N/A"
@@ -259,9 +361,16 @@ def format_distance(km: float, *, meters_below_1km: bool = True, decimals: int =
 
 
 @app.function
-def base_folium_map(location: list[float], zoom_start: int, *, light_basemap: bool = False) -> folium.Map:
+def base_folium_map(
+    location: list[float], zoom_start: int, *, light_basemap: bool = False
+) -> folium.Map:
     """OpenStreetMap-based Folium map, optionally with an extra CARTO light basemap layer."""
-    fmap = folium.Map(location=location, zoom_start=zoom_start, tiles="OpenStreetMap", control_scale=True)
+    fmap = folium.Map(
+        location=location,
+        zoom_start=zoom_start,
+        tiles="OpenStreetMap",
+        control_scale=True,
+    )
     if light_basemap:
         folium.TileLayer(
             tiles="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
@@ -299,10 +408,16 @@ def resolve_arq_dir() -> Path:
 
 @app.function
 def classify_log_step(proc: str) -> tuple[str, bool]:
-    """Return (short_tag, is_data_quality_event) for a log Processamento string."""
-    if proc.startswith("MOSAICO: Registros agrupados"):
+    """Return (short_tag, is_data_quality_event) for a log message (JSON key "Log")."""
+    if proc.startswith(("MOSAICO: Registros agrupados", "MOSAICO: Agrupamento")):
         return ("MOSAICO_AGRUPADO", False)
-    if proc.startswith(("MOSAICO-TELECOM: Registros Agrupados", "Registros Agrupados")):
+    if proc.startswith(
+        (
+            "MOSAICO-TELECOM: Registros Agrupados",
+            "MOSAICO-TELECOM: Agrupamento",
+            "Registros Agrupados",
+        )
+    ):
         return ("TELECOM_AGRUPADO", False)
     if "Colunas criadas à partir da Canalização" in proc:
         return ("SMP_CANALIZACAO", False)
@@ -314,25 +429,35 @@ def classify_log_step(proc: str) -> tuple[str, bool]:
         return ("SMP_LON_MUNICIPIO", False)
     if proc.startswith("RADCOM:"):
         return ("RADCOM_FASE_SITUACAO", False)
-    if proc.startswith("Código do município retirado do polígono"):
+    if proc.startswith(
+        (
+            "Código do município retirado do polígono",
+            "IBGE: Dado derivado das coordenadas",
+        )
+    ):
         return ("IBGE_POLIGONO_RECUPERADO", True)
     if proc.startswith("Coordenadas e Código do Município nulos"):
         return ("MUN_E_COORD_NULOS", True)
     if proc.startswith("Código do Município nulo"):
         return ("MUN_CODIGO_NULO", True)
-    if proc.startswith("Coordenadas divergentes"):
+    if proc.startswith(("Coordenadas divergentes", "IBGE: Município distinto")):
         return ("IBGE_COORD_DIVERGENTE", True)
     if proc.startswith("Nomes de Municípios e UFs normalizados"):
         return ("IBGE_NOME_NORMALIZADO", True)
-    if proc.startswith("Valor Nulo de Coordenadas"):
+    if proc.startswith(
+        (
+            "Valor Nulo de Coordenadas",
+            "IBGE: Coordenadas Nulas -> Coordenadas do Município",
+        )
+    ):
         return ("COORD_NULA_PREENCHIDA_IBGE", True)
     if proc.startswith("Coordenadas nulas"):
         return ("COORD_NULAS", True)
     if proc.startswith("Coordenadas corrigidas automaticamente"):
         return ("COORD_SINAL_OU_TROCA_CORRIGIDA", True)
-    if proc.startswith("Coordenadas inválidas"):
+    if proc.startswith(("Coordenadas inválidas", "IBGE: Coordenadas inválidas")):
         return ("COORD_ABSURDA_SUBSTITUIDA_IBGE", True)
-    if proc.startswith("Coordenadas Fora do Território"):
+    if proc.startswith(("Coordenadas Fora do Território", "Fora do Território")):
         return ("FORA_TERRITORIO_BR", False)
     if proc.startswith("Código do Município não consta"):
         return ("MUN_NAO_CONSTA_IBGE", True)
@@ -342,7 +467,9 @@ def classify_log_step(proc: str) -> tuple[str, bool]:
 
 
 @app.function
-def parse_log_templates(log_raw_df: pd.DataFrame, rows_per_log: pd.Series) -> tuple[pd.DataFrame, pd.DataFrame]:
+def parse_log_templates(
+    log_raw_df: pd.DataFrame, rows_per_log: pd.Series
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Unnest factorized JSON log templates into (templates, events) tables.
 
     `rows_per_log` maps Log ID -> number of rows in estacoes referencing it.
@@ -353,33 +480,42 @@ def parse_log_templates(log_raw_df: pd.DataFrame, rows_per_log: pd.Series) -> tu
         n_rows = int(rows_per_log.get(lid, 0))
         tags, pretty_parts, has_dq = [], [], False
         for step_i, it in enumerate(items):
-            proc = it.get("Processamento", "")
-            col = it.get("Coluna", "")
-            orig = it.get("Original", "")
+            proc = it.get("Log", "")
             tag, is_dq = classify_log_step(proc)
             has_dq = has_dq or is_dq
             tags.append(tag)
-            detail = f" [{col}: '{orig}']" if col else ""
-            pretty_parts.append(f"{step_i + 1}. {tag}{detail}")
-            event_rows.append(
-                {
-                    "Log": lid,
-                    "Passo": step_i + 1,
-                    "Tag": tag,
-                    "Alerta_Qualidade": is_dq,
-                    "Processamento": proc.replace("\n", " "),
-                    "Coluna": col,
-                    "Original": orig,
-                    "Estacoes_Afetadas": n_rows,
-                }
+            # A step may touch several columns at once: Coluna/Valor are then parallel lists
+            cols, vals = it.get("Coluna", ""), it.get("Valor", it.get("Original", ""))
+            if not isinstance(cols, list):
+                cols, vals = [cols], [vals]
+            detail = ", ".join(f"{c}: '{v}'" for c, v in zip(cols, vals) if c)
+            pretty_parts.append(
+                f"{step_i + 1}. {tag}" + (f" [{detail}]" if detail else "")
             )
+            for col, val in zip(cols, vals):
+                event_rows.append(
+                    {
+                        "Log": lid,
+                        "Passo": step_i + 1,
+                        "Tag": tag,
+                        "Alerta_Qualidade": is_dq,
+                        "Processamento": proc.replace("\n", " "),
+                        "Coluna": col,
+                        "Valor": val,
+                        "Estacoes_Afetadas": n_rows,
+                    }
+                )
         tmpl_rows.append(
             {
                 "Log": lid,
                 "Qtd_Passos": len(items),
-                "Pipeline": " → ".join(dict.fromkeys(tags)) if tags else "SEM_ALTERACAO",
+                "Pipeline": " → ".join(dict.fromkeys(tags))
+                if tags
+                else "SEM_ALTERACAO",
                 "Alerta_Qualidade": has_dq,
-                "Resumo_Log": " | ".join(pretty_parts) if pretty_parts else "Sem alterações registradas",
+                "Resumo_Log": " | ".join(pretty_parts)
+                if pretty_parts
+                else "Sem alterações registradas",
                 "JSON_Bruto": raw,
                 "Estacoes_Afetadas": n_rows,
             }
@@ -393,19 +529,27 @@ def _():
     DATA_DIR = ARQ_DIR / "saida"
 
     _shp_candidates = sorted(ARQ_DIR.glob("BR_Municipios_*/*.shp"))
-    SHP_PATH = str(_shp_candidates[-1]) if _shp_candidates else str(ARQ_DIR / "BR_Municipios_2025" / "BR_Municipios_2025.shp")
+    SHP_PATH = (
+        str(_shp_candidates[-1])
+        if _shp_candidates
+        else str(ARQ_DIR / "BR_Municipios_2025" / "BR_Municipios_2025.shp")
+    )
 
     estacoes_parquet_path = DATA_DIR / "estacoes.parquet"
     log_parquet_path = DATA_DIR / "log.parquet"
     estacoes_size_mb = estacoes_parquet_path.stat().st_size / (1024**2)
     log_size_mb = log_parquet_path.stat().st_size / (1024**2)
-    estacoes_mtime_str = datetime.fromtimestamp(estacoes_parquet_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+    estacoes_mtime_str = datetime.fromtimestamp(
+        estacoes_parquet_path.stat().st_mtime
+    ).strftime("%Y-%m-%d %H:%M:%S")
 
     estacoes = pd.read_parquet(estacoes_parquet_path)
     log_raw_df = pd.read_parquet(log_parquet_path)
     ibge_mun = pd.read_csv(ARQ_DIR / "municipios.csv", dtype=str)
 
-    log_templates, log_events = parse_log_templates(log_raw_df, estacoes["Log"].value_counts())
+    log_templates, log_events = parse_log_templates(
+        log_raw_df, estacoes["Log"].value_counts()
+    )
 
     # Core numeric arrays shared by all sections
     freq_mhz = cat_to_float(estacoes["Frequência"])
@@ -480,7 +624,9 @@ def _(
     _dirty_ufs = sorted(_uf_vals - OFFICIAL_UFS - {"-1"})
     _uf_missing = int((estacoes["UF"].astype(str) == "-1").sum())
     _low_fill_count = int((schema_profile_df["Preenchido_%"] < 50.0).sum())
-    _srd_share_pct = float(estacoes["Fonte"].astype(str).isin(["MOSAICO-SRD", "SRD"]).mean() * 100.0)
+    _srd_share_pct = float(
+        estacoes["Fonte"].astype(str).isin(["MOSAICO-SRD", "SRD"]).mean() * 100.0
+    )
 
     _uf_status_txt = (
         f"nenhuma UF fora do padrão IBGE ({_valid_ufs_count} UFs oficiais presentes e **{_uf_missing:,}** registros offshore/fronteira com `UF == '-1'`)"
@@ -490,9 +636,21 @@ def _(
 
     _kpis = kpi_row(
         [
-            ("Registros Consolidados", f"{len(estacoes):,}", f"{estacoes_size_mb:.1f} MB Parquet ({_n_cols} colunas)"),
-            ("Emissores Físicos (Σ Multiplicidade)", f"{_n_emit:,}", f"Média {mult_num.mean():.1f}x por linha agrupada"),
-            ("Templates em log.parquet", f"{len(log_templates):,}", f"{len(log_events):,} eventos JSON fatorados"),
+            (
+                "Registros Consolidados",
+                f"{len(estacoes):,}",
+                f"{estacoes_size_mb:.1f} MB Parquet ({_n_cols} colunas)",
+            ),
+            (
+                "Emissores Físicos (Σ Multiplicidade)",
+                f"{_n_emit:,}",
+                f"Média {mult_num.mean():.1f}x por linha agrupada",
+            ),
+            (
+                "Templates em log.parquet",
+                f"{len(log_templates):,}",
+                f"{len(log_events):,} eventos JSON fatorados",
+            ),
             (
                 "Município Preenchido",
                 f"{_mun_filled_pct:.2f}%",
@@ -505,16 +663,29 @@ def _(
         alt.Chart(schema_profile_df)
         .mark_bar(cornerRadiusEnd=3)
         .encode(
-            x=alt.X("Preenchido_%:Q", title="% Preenchido (não '-1')", scale=alt.Scale(domain=[0, 100])),
+            x=alt.X(
+                "Preenchido_%:Q",
+                title="% Preenchido (não '-1')",
+                scale=alt.Scale(domain=[0, 100]),
+            ),
             y=alt.Y("Coluna:N", sort="-x", title=None),
             color=alt.condition(
                 alt.datum["Preenchido_%"] < 50,
                 alt.value("#e45756"),
                 alt.value("#4c78a8"),
             ),
-            tooltip=["Coluna", "Preenchido_%", alt.Tooltip("Sentinela_-1:Q", format=","), alt.Tooltip("Valores_Unicos:Q", format=","), "Valor_Mais_Comum"],
+            tooltip=[
+                "Coluna",
+                "Preenchido_%",
+                alt.Tooltip("Sentinela_-1:Q", format=","),
+                alt.Tooltip("Valores_Unicos:Q", format=","),
+                "Valor_Mais_Comum",
+            ],
         )
-        .properties(height=500, title=f"Completude por Coluna ({len(estacoes):,} registros | Sentinela '-1' = Ausente)")
+        .properties(
+            height=500,
+            title=f"Completude por Coluna ({len(estacoes):,} registros | Sentinela '-1' = Ausente)",
+        )
     )
 
     mo.vstack(
@@ -529,7 +700,9 @@ def _(
             mo.ui.tabs(
                 {
                     "📊 Gráfico de Completude": _miss_chart,
-                    "📋 Tabela de Perfil das Colunas": mo.ui.table(schema_profile_df, pagination=True, page_size=15),
+                    "📋 Tabela de Perfil das Colunas": mo.ui.table(
+                        schema_profile_df, pagination=True, page_size=15
+                    ),
                 }
             ),
         ]
@@ -553,7 +726,9 @@ def _(
     _band_df = summarize_by(
         pd.DataFrame(
             {
-                "Faixa": pd.cut(freq_mhz, bins=SPECTRUM_BAND_BINS, labels=SPECTRUM_BAND_LABELS),
+                "Faixa": pd.cut(
+                    freq_mhz, bins=SPECTRUM_BAND_BINS, labels=SPECTRUM_BAND_LABELS
+                ),
                 "Emissores": mult_num,
             }
         ),
@@ -562,17 +737,30 @@ def _(
         observed=False,
     )
 
-    _fonte_df = summarize_by(pd.DataFrame({"Fonte": estacoes["Fonte"].astype(str), "Emissores": mult_num}), "Fonte").head(12)
+    _fonte_df = summarize_by(
+        pd.DataFrame({"Fonte": estacoes["Fonte"].astype(str), "Emissores": mult_num}),
+        "Fonte",
+    ).head(12)
     _fonte_df["%_Registros"] = (_fonte_df["Registros"] / _n_total * 100.0).round(2)
 
     _serv_df = summarize_by(
-        pd.DataFrame({"Serviço": estacoes["Serviço"].astype(str), "Emissores": mult_num, "Freq_MHz": freq_mhz}),
+        pd.DataFrame(
+            {
+                "Serviço": estacoes["Serviço"].astype(str),
+                "Emissores": mult_num,
+                "Freq_MHz": freq_mhz,
+            }
+        ),
         "Serviço",
         Freq_Mediana_MHz=("Freq_MHz", "median"),
     ).head(12)
-    _serv_df["Descricao"] = _serv_df["Serviço"].map(lambda c: SERVICO_NOMES.get(c, f"Serviço {c}"))
+    _serv_df["Descricao"] = _serv_df["Serviço"].map(
+        lambda c: SERVICO_NOMES.get(c, f"Serviço {c}")
+    )
 
-    _uf_df = summarize_by(pd.DataFrame({"UF": estacoes["UF"].astype(str), "Emissores": mult_num}), "UF")
+    _uf_df = summarize_by(
+        pd.DataFrame({"UF": estacoes["UF"].astype(str), "Emissores": mult_num}), "UF"
+    )
     _uf_df["Anomala"] = ~_uf_df["UF"].isin(OFFICIAL_UFS)
 
     _ent_df = summarize_by(
@@ -592,8 +780,12 @@ def _(
     _top1_s = _serv_df.iloc[0]
     _top2_s = _serv_df.iloc[1] if len(_serv_df) > 1 else _top1_s
     _top1_pct = float(_top1_s["Registros"] / _n_total * 100.0)
-    _top2_pct = float(_top2_s["Registros"] / _n_total * 100.0) if len(_serv_df) > 1 else 0.0
-    _top2_emit_pct = float(_serv_df["Emissores_Fisicos"].iloc[:2].sum() / _emit_total * 100.0)
+    _top2_pct = (
+        float(_top2_s["Registros"] / _n_total * 100.0) if len(_serv_df) > 1 else 0.0
+    )
+    _top2_emit_pct = float(
+        _serv_df["Emissores_Fisicos"].iloc[:2].sum() / _emit_total * 100.0
+    )
     _sub3_pct = float(np.nanmean((freq_mhz > 0) & (freq_mhz <= 3000.0)) * 100.0)
     _shf_pct = float(np.nanmean(freq_mhz >= 6000.0) * 100.0)
 
@@ -603,7 +795,11 @@ def _(
         .encode(
             x=alt.X("Registros:Q", title="Registros"),
             y=alt.Y("Faixa:N", sort=None, title="Faixa de Espectro"),
-            tooltip=["Faixa", alt.Tooltip("Registros:Q", format=","), alt.Tooltip("Emissores_Fisicos:Q", format=",.0f")],
+            tooltip=[
+                "Faixa",
+                alt.Tooltip("Registros:Q", format=","),
+                alt.Tooltip("Emissores_Fisicos:Q", format=",.0f"),
+            ],
         )
         .properties(width=350, height=270, title="Distribuição por Faixa de Frequência")
     )
@@ -614,9 +810,16 @@ def _(
         .encode(
             x=alt.X("Registros:Q", title="Registros"),
             y=alt.Y("Descricao:N", sort="-x", title="Serviço Anatel"),
-            tooltip=["Descricao", alt.Tooltip("Registros:Q", format=","), alt.Tooltip("Emissores_Fisicos:Q", format=",.0f"), alt.Tooltip("Freq_Mediana_MHz:Q", format=".2f")],
+            tooltip=[
+                "Descricao",
+                alt.Tooltip("Registros:Q", format=","),
+                alt.Tooltip("Emissores_Fisicos:Q", format=",.0f"),
+                alt.Tooltip("Freq_Mediana_MHz:Q", format=".2f"),
+            ],
         )
-        .properties(width=350, height=270, title=f"Top {len(_serv_df)} Serviços (Anatel / Aero)")
+        .properties(
+            width=350, height=270, title=f"Top {len(_serv_df)} Serviços (Anatel / Aero)"
+        )
     )
 
     _chart_uf = (
@@ -630,9 +833,17 @@ def _(
                 alt.value("#e45756"),
                 alt.value("#4c78a8"),
             ),
-            tooltip=["UF", alt.Tooltip("Registros:Q", format=","), alt.Tooltip("Emissores_Fisicos:Q", format=",.0f"), "Anomala"],
+            tooltip=[
+                "UF",
+                alt.Tooltip("Registros:Q", format=","),
+                alt.Tooltip("Emissores_Fisicos:Q", format=",.0f"),
+                "Anomala",
+            ],
         )
-        .properties(height=250, title=f"Registros por UF (barras vermelhas = fora das {len(OFFICIAL_UFS)} UFs oficiais)")
+        .properties(
+            height=250,
+            title=f"Registros por UF (barras vermelhas = fora das {len(OFFICIAL_UFS)} UFs oficiais)",
+        )
     )
 
     mo.vstack(
@@ -640,14 +851,21 @@ def _(
             mo.md(
                 f"""
     ## 2. Espectro, Serviços, Fontes & Operadoras
-    - **Concentração por Serviço:** `{_top1_s['Descricao']}` (**{_top1_pct:.1f}%**, {int(_top1_s['Registros']):,} linhas) e `{_top2_s['Descricao']}` (**{_top2_pct:.1f}%**, {int(_top2_s['Registros']):,} linhas) concentram juntos **{_top1_pct + _top2_pct:.1f}%** dos registros e **{_top2_emit_pct:.1f}%** dos **{int(mult_num.sum()):,}** emissores físicos.
+    - **Concentração por Serviço:** `{_top1_s["Descricao"]}` (**{_top1_pct:.1f}%**, {int(_top1_s["Registros"]):,} linhas) e `{_top2_s["Descricao"]}` (**{_top2_pct:.1f}%**, {int(_top2_s["Registros"]):,} linhas) concentram juntos **{_top1_pct + _top2_pct:.1f}%** dos registros e **{_top2_emit_pct:.1f}%** dos **{int(mult_num.sum()):,}** emissores físicos.
     - **Perfil Espectral:** **{_sub3_pct:.1f}%** das frequências válidas operam abaixo de 3 GHz (rádio privativo VHF/UHF, radiodifusão e cobertura móvel 2G/3G/4G) e **{_shf_pct:.1f}%** operam acima de 6 GHz (enlaces ponto-a-ponto SHF/EHF de *backhaul*).
     """
             ),
             mo.ui.tabs(
                 {
-                    "📡 Espectro & Serviços": mo.vstack([mo.hstack([_chart_bands, _chart_serv], justify="start"), _chart_uf]),
-                    f"🏢 Top {len(_ent_df)} Entidades": mo.ui.table(_ent_df, pagination=False),
+                    "📡 Espectro & Serviços": mo.vstack(
+                        [
+                            mo.hstack([_chart_bands, _chart_serv], justify="start"),
+                            _chart_uf,
+                        ]
+                    ),
+                    f"🏢 Top {len(_ent_df)} Entidades": mo.ui.table(
+                        _ent_df, pagination=False
+                    ),
                     "🗂️ Top Fontes": mo.ui.table(_fonte_df, pagination=False),
                 }
             ),
@@ -680,11 +898,15 @@ def tag_summary(log_events: pd.DataFrame, log_templates: pd.DataFrame) -> pd.Dat
     do not double-count stations.
     """
     stations_per_log = log_templates.set_index("Log")["Estacoes_Afetadas"]
-    per_log = log_events.groupby(["Tag", "Alerta_Qualidade", "Log"], as_index=False).agg(
+    per_log = log_events.groupby(
+        ["Tag", "Alerta_Qualidade", "Log"], as_index=False
+    ).agg(
         Colunas_Afetadas=("Coluna", "count"),
         Exemplo_Processamento=("Processamento", "first"),
     )
-    per_log["Estacoes_Unicas"] = per_log["Log"].map(stations_per_log).fillna(0).astype(int)
+    per_log["Estacoes_Unicas"] = (
+        per_log["Log"].map(stations_per_log).fillna(0).astype(int)
+    )
     per_log["Eventos_Coluna"] = per_log["Estacoes_Unicas"] * per_log["Colunas_Afetadas"]
     return (
         per_log.groupby(["Tag", "Alerta_Qualidade"], as_index=False)
@@ -699,31 +921,48 @@ def tag_summary(log_events: pd.DataFrame, log_templates: pd.DataFrame) -> pd.Dat
 
 
 @app.function
-def log_original_values(log_events: pd.DataFrame, tag: str, coluna: str | None = None) -> pd.Series:
-    """`Original` (pre-change) value per Log ID for a given Tag (and optionally Coluna)."""
+def log_original_values(
+    log_events: pd.DataFrame, tag: str, coluna: str | None = None
+) -> pd.Series:
+    """Logged `Valor` (pre-change value or, for checks, the reference value) per Log ID for a given Tag (and optionally Coluna)."""
     ev = log_events[log_events["Tag"] == tag]
     if coluna is not None:
         ev = ev[ev["Coluna"] == coluna]
-    return ev.drop_duplicates("Log").set_index("Log")["Original"]
+    return ev.drop_duplicates("Log").set_index("Log")["Valor"]
 
 
 @app.function
-def smp_centroid_shift(log_events: pd.DataFrame, estacoes: pd.DataFrame) -> pd.DataFrame:
+def smp_centroid_shift(
+    log_events: pd.DataFrame, estacoes: pd.DataFrame
+) -> pd.DataFrame:
     """Distance between the original SMP tower coordinate and the municipal centroid assigned on grouping."""
     orig_lat = log_original_values(log_events, "SMP_LAT_MUNICIPIO")
     orig_lon = log_original_values(log_events, "SMP_LON_MUNICIPIO")
     lids = orig_lat.index.intersection(orig_lon.index)
     out = (
-        estacoes[estacoes["Log"].isin(lids)][["Log", "UF", "Município", "Latitude", "Longitude"]]
+        estacoes[estacoes["Log"].isin(lids)][
+            ["Log", "UF", "Município", "Latitude", "Longitude"]
+        ]
         .drop_duplicates("Log")
         .copy()
     )
     out["Orig_Lat"] = pd.to_numeric(out["Log"].map(orig_lat), errors="coerce")
     out["Orig_Lon"] = pd.to_numeric(out["Log"].map(orig_lon), errors="coerce")
-    out["Mun_Lat"] = pd.to_numeric(out["Latitude"].astype(str), errors="coerce")
-    out["Mun_Lon"] = pd.to_numeric(out["Longitude"].astype(str), errors="coerce")
-    out = out[valid_wgs84_mask(out["Orig_Lat"], out["Orig_Lon"])].copy()
-    out["Deslocamento_km"] = np.round(haversine_km(out["Orig_Lat"], out["Orig_Lon"], out["Mun_Lat"], out["Mun_Lon"]), 2)
+    # "-1" is the missing-coordinate sentinel, not a centroid
+    out["Mun_Lat"] = pd.to_numeric(
+        out["Latitude"].astype(str).replace("-1", None), errors="coerce"
+    )
+    out["Mun_Lon"] = pd.to_numeric(
+        out["Longitude"].astype(str).replace("-1", None), errors="coerce"
+    )
+    out = out[
+        valid_wgs84_mask(out["Orig_Lat"], out["Orig_Lon"])
+        & valid_wgs84_mask(out["Mun_Lat"], out["Mun_Lon"])
+    ].copy()
+    out["Deslocamento_km"] = np.round(
+        haversine_km(out["Orig_Lat"], out["Orig_Lon"], out["Mun_Lat"], out["Mun_Lon"]),
+        2,
+    )
     return out
 
 
@@ -777,9 +1016,13 @@ def _(
 
     _n_smp = len(smp_shift_df)
     _smp_med_km = float(smp_shift_df["Deslocamento_km"].median()) if _n_smp else 0.0
-    _smp_p90_km = float(smp_shift_df["Deslocamento_km"].quantile(0.9)) if _n_smp else 0.0
+    _smp_p90_km = (
+        float(smp_shift_df["Deslocamento_km"].quantile(0.9)) if _n_smp else 0.0
+    )
     _smp_max_km = float(smp_shift_df["Deslocamento_km"].max()) if _n_smp else 0.0
-    _smp_shift_top = smp_shift_df.sort_values("Deslocamento_km", ascending=False).head(30)
+    _smp_shift_top = smp_shift_df.sort_values("Deslocamento_km", ascending=False).head(
+        30
+    )
 
     _ev_view = log_events
     if log_only_dq.value:
@@ -789,7 +1032,9 @@ def _(
 
     _sel_lid = min(max(0, int(log_id_selector.value)), max(0, len(log_templates) - 1))
     _sel_tmpl = log_templates.loc[log_templates["Log"] == _sel_lid].iloc[0]
-    _sel_steps = log_events[log_events["Log"] == _sel_lid][["Passo", "Tag", "Coluna", "Original", "Processamento"]]
+    _sel_steps = log_events[log_events["Log"] == _sel_lid][
+        ["Passo", "Tag", "Coluna", "Valor", "Processamento"]
+    ]
     _linked_stations = (
         estacoes[estacoes["Log"] == _sel_lid][
             [
@@ -814,7 +1059,11 @@ def _(
         alt.Chart(tag_summary_df)
         .mark_bar(cornerRadiusEnd=3)
         .encode(
-            x=alt.X("Estacoes_Unicas:Q", title="Estações Únicas Afetadas (escala symlog)", scale=alt.Scale(type="symlog")),
+            x=alt.X(
+                "Estacoes_Unicas:Q",
+                title="Estações Únicas Afetadas (escala symlog)",
+                scale=alt.Scale(type="symlog"),
+            ),
             y=alt.Y("Tag:N", sort="-x", title="Evento de Log"),
             color=alt.condition(
                 alt.datum["Alerta_Qualidade"],
@@ -829,14 +1078,18 @@ def _(
                 alt.Tooltip("Templates_com_Evento:Q", format=",", title="Templates"),
             ],
         )
-        .properties(height=360, title=f"Estações Únicas por Tipo de Evento em log.parquet ({len(log_templates):,} Templates)")
+        .properties(
+            height=360,
+            title=f"Estações Únicas por Tipo de Evento em log.parquet ({len(log_templates):,} Templates)",
+        )
     )
 
-    _n_norm = int(_tag_stations.get("IBGE_NOME_NORMALIZADO", 0))
     _n_div_st = int(_tag_stations.get("IBGE_COORD_DIVERGENTE", 0))
     _n_div_ev = int(_tag_col_events.get("IBGE_COORD_DIVERGENTE", 0))
     _n_poly_rec = int(_tag_stations.get("IBGE_POLIGONO_RECUPERADO", 0))
-    _n_auto_fix = int(_tag_stations.get("COORD_SINAL_OU_TROCA_CORRIGIDA", 0)) + int(_tag_stations.get("COORD_ABSURDA_SUBSTITUIDA_IBGE", 0))
+    _n_auto_fix = int(_tag_stations.get("COORD_SINAL_OU_TROCA_CORRIGIDA", 0)) + int(
+        _tag_stations.get("COORD_ABSURDA_SUBSTITUIDA_IBGE", 0)
+    )
     _n_null_fill = int(_tag_stations.get("COORD_NULA_PREENCHIDA_IBGE", 0))
 
     mo.vstack(
@@ -846,8 +1099,7 @@ def _(
     ## 3. Explorador Estruturado de `log.parquet` (Rastreabilidade Antes → Depois)
     O dicionário fatorado `log.parquet` contém **{len(log_templates):,} templates distintos** (**{len(log_events):,} eventos atômicos**), permitindo auditar cada transformação aplicada às **{len(estacoes):,}** estações:
 
-    - **`IBGE_NOME_NORMALIZADO`:** **{_n_norm:,} estações** tiveram nome de `Município` e/ou `UF` padronizados ou preenchidos pela tabela oficial do IBGE.
-    - **`IBGE_COORD_DIVERGENTE`:** **{_n_div_st:,} estações únicas** ({_n_div_ev:,} substituições de `#Latitude`/`#Longitude`) apresentaram coordenada em polígono municipal distinto do `Código_Município` declarado — analisadas em detalhe na **Seção 4** abaixo.
+    - **`IBGE_COORD_DIVERGENTE`:** **{_n_div_st:,} estações únicas** ({_n_div_ev:,} eventos `NM_MUN`) apresentaram coordenada em polígono municipal distinto do `Código_Município` declarado — a divergência é apenas registrada no `Log` (com o nome do município do polígono, `NM_MUN`, em `Valor`) e as coordenadas são preservadas — analisadas em detalhe na **Seção 4** abaixo.
     - **Recuperação Geoespacial Automática:** **{_n_poly_rec:,} estações** sem código IBGE recuperaram `Código_Município`/`Município`/`UF` via interseção com o polígono territorial (`IBGE_POLIGONO_RECUPERADO`), **{_n_auto_fix:,} estações** tiveram sinal/troca de coordenadas ou Null Island corrigidos automaticamente, e **{_n_null_fill:,} estações** sem coordenadas receberam o centroide municipal.
     - **Deslocamento ERB → Centroide no `MOSAICO-SMP`:** Em **{_n_smp:,} templates SMP** agrupados por município, o deslocamento mediano entre a coordenada original da ERB e o centroide municipal é de **{_smp_med_km:.2f} km** (p90 = **{_smp_p90_km:.2f} km**, máx = **{_smp_max_km:,.1f} km**).
     """
@@ -857,15 +1109,23 @@ def _(
                     "🔀 Pipelines & Gráfico de Eventos": mo.vstack(
                         [
                             _tag_chart,
-                            mo.md("### Resumo por Tag (Estações Únicas vs. Eventos de Coluna)"),
+                            mo.md(
+                                "### Resumo por Tag (Estações Únicas vs. Eventos de Coluna)"
+                            ),
                             mo.ui.table(tag_summary_df, pagination=False),
-                            mo.md("### Top 25 Sequências de Processamento (`Pipeline`)"),
-                            mo.ui.table(pipe_summary_df.head(25), pagination=True, page_size=15),
+                            mo.md(
+                                "### Top 25 Sequências de Processamento (`Pipeline`)"
+                            ),
+                            mo.ui.table(
+                                pipe_summary_df.head(25), pagination=True, page_size=15
+                            ),
                         ]
                     ),
                     "📏 Deslocamento Real ERB → Município (SMP)": mo.vstack(
                         [
-                            mo.md("Distância geodésica entre a coordenada original da torre (`Original` preservado no `Log`) e o centroide municipal atribuído no agrupamento SMP:"),
+                            mo.md(
+                                "Distância geodésica entre a coordenada original da torre (`Original` preservado no `Log`) e o centroide municipal atribuído no agrupamento SMP:"
+                            ),
                             mo.ui.table(_smp_shift_top, pagination=True, page_size=12),
                         ]
                     ),
@@ -884,12 +1144,18 @@ def _(
                                     f"**Pipeline:** `{_sel_tmpl['Pipeline']}`\n\n"
                                     f"**JSON bruto:** `{_sel_tmpl['JSON_Bruto']}`"
                                 ),
-                                kind="warn" if _sel_tmpl["Alerta_Qualidade"] else "info",
+                                kind="warn"
+                                if _sel_tmpl["Alerta_Qualidade"]
+                                else "info",
                             ),
                             mo.md("**Passos desaninhados deste Log ID:**"),
                             mo.ui.table(_sel_steps, pagination=False),
-                            mo.md(f"**Amostra de estações com `Log == {_sel_lid}` (até 50 de {_sel_tmpl['Estacoes_Afetadas']:,}):**"),
-                            mo.ui.table(_linked_stations, pagination=True, page_size=10),
+                            mo.md(
+                                f"**Amostra de estações com `Log == {_sel_lid}` (até 50 de {_sel_tmpl['Estacoes_Afetadas']:,}):**"
+                            ),
+                            mo.ui.table(
+                                _linked_stations, pagination=True, page_size=10
+                            ),
                         ]
                     ),
                 }
@@ -901,7 +1167,9 @@ def _(
 
 @app.function
 @mo.persistent_cache
-def compute_divergent_forensics(unique_pairs: pd.DataFrame, shp_path_str: str) -> pd.DataFrame:
+def compute_divergent_forensics(
+    unique_pairs: pd.DataFrame, shp_path_str: str
+) -> pd.DataFrame:
     """Intersect original pre-substitution coordinates with IBGE polygons and measure exact distance to declared border."""
     if len(unique_pairs) == 0:
         return pd.DataFrame(
@@ -917,10 +1185,14 @@ def compute_divergent_forensics(unique_pairs: pd.DataFrame, shp_path_str: str) -
             ]
         )
 
-    regions = gpd.read_file(shp_path_str, columns=["CD_MUN", "NM_MUN", "SIGLA_UF", "geometry"])
+    regions = gpd.read_file(
+        shp_path_str, columns=["CD_MUN", "NM_MUN", "SIGLA_UF", "geometry"]
+    )
     regions["CD_MUN"] = regions["CD_MUN"].astype(str)
 
-    pts_wgs = shapely.points(unique_pairs["Orig_Lon"].to_numpy(), unique_pairs["Orig_Lat"].to_numpy())
+    pts_wgs = shapely.points(
+        unique_pairs["Orig_Lon"].to_numpy(), unique_pairs["Orig_Lat"].to_numpy()
+    )
     tree = shapely.STRtree(regions.geometry.to_numpy())
     pt_i, poly_i = tree.query(pts_wgs, predicate="intersects")
     _, first_occ = np.unique(pt_i, return_index=True)
@@ -952,7 +1224,9 @@ def compute_divergent_forensics(unique_pairs: pd.DataFrame, shp_path_str: str) -
     dist_km = np.full(len(res), np.nan, dtype="float64")
     vizinho = np.zeros(len(res), dtype=bool)
     if valid_g.any():
-        dist_km[valid_g] = shapely.distance(pts_m[valid_g], decl_geoms[valid_g]) / 1000.0
+        dist_km[valid_g] = (
+            shapely.distance(pts_m[valid_g], decl_geoms[valid_g]) / 1000.0
+        )
         vizinho[valid_g] = shapely.intersects(decl_geoms[valid_g], real_geoms[valid_g])
 
     res["Dist_Borda_km"] = dist_km
@@ -961,7 +1235,9 @@ def compute_divergent_forensics(unique_pairs: pd.DataFrame, shp_path_str: str) -
 
 
 @app.function
-def classify_divergent_regime(dist_borda_km: pd.Series, vizinho: pd.Series, mesma_uf: pd.Series) -> np.ndarray:
+def classify_divergent_regime(
+    dist_borda_km: pd.Series, vizinho: pd.Series, mesma_uf: pd.Series
+) -> np.ndarray:
     """Spatial regime code (keys of DIVERGENT_REGIME_META) from border distance and adjacency."""
     conditions = [
         dist_borda_km <= 0.1,
@@ -984,31 +1260,47 @@ def classify_divergent_regime(dist_borda_km: pd.Series, vizinho: pd.Series, mesm
 def build_divergent_records(
     estacoes: pd.DataFrame,
     log_events: pd.DataFrame,
+    ibge_mun: pd.DataFrame,
     shp_path: str,
     regime_meta: dict[str, tuple[str, str]],
 ) -> pd.DataFrame:
-    """One row per IBGE_COORD_DIVERGENTE station with original vs. substituted coordinates and forensic diagnostics."""
-    orig_lat = log_original_values(log_events, "IBGE_COORD_DIVERGENTE", "#Latitude")
-    orig_lon = log_original_values(log_events, "IBGE_COORD_DIVERGENTE", "#Longitude")
+    """One row per IBGE_COORD_DIVERGENTE station: kept coordinate vs. declared municipality centroid, plus forensic diagnostics.
 
-    base = estacoes[estacoes["Log"].isin(orig_lat.index.union(orig_lon.index))].copy()
+    The pipeline only logs the divergence (polygon `NM_MUN` in `Valor`) and keeps the
+    original coordinates, so `New_Lat`/`New_Lon` is the declared municipality's IBGE centroid.
+    """
+    log_nm_mun = log_original_values(log_events, "IBGE_COORD_DIVERGENTE")
+
+    base = estacoes[estacoes["Log"].isin(log_nm_mun.index)].copy()
     base["Cod_Decl"] = base["Código_Município"].astype(str)
     base["UF_Decl"] = base["UF"].astype(str)
     base["Mun_Decl"] = base["Município"].astype(str)
-    base["New_Lat"] = pd.to_numeric(base["Latitude"].astype(str), errors="coerce")
-    base["New_Lon"] = pd.to_numeric(base["Longitude"].astype(str), errors="coerce")
-    base["Orig_Lat"] = pd.to_numeric(base["Log"].map(orig_lat), errors="coerce").fillna(base["New_Lat"])
-    base["Orig_Lon"] = pd.to_numeric(base["Log"].map(orig_lon), errors="coerce").fillna(base["New_Lon"])
+    base["Log_NM_MUN"] = base["Log"].map(log_nm_mun).astype(str)
+    base["Orig_Lat"] = pd.to_numeric(base["Latitude"].astype(str), errors="coerce")
+    base["Orig_Lon"] = pd.to_numeric(base["Longitude"].astype(str), errors="coerce")
+    centroids = ibge_mun.set_index("Código_Município")[["Latitude", "Longitude"]]
+    base["New_Lat"] = pd.to_numeric(
+        base["Cod_Decl"].map(centroids["Latitude"]), errors="coerce"
+    )
+    base["New_Lon"] = pd.to_numeric(
+        base["Cod_Decl"].map(centroids["Longitude"]), errors="coerce"
+    )
     base["Mult_Num"] = np.nan_to_num(cat_to_float(base["Multiplicidade"]), nan=1.0)
 
     keys = ["Cod_Decl", "Orig_Lat", "Orig_Lon"]
     unique_pairs = base[keys].dropna().drop_duplicates().reset_index(drop=True)
-    rec = base.merge(compute_divergent_forensics(unique_pairs, shp_path), on=keys, how="left")
+    rec = base.merge(
+        compute_divergent_forensics(unique_pairs, shp_path), on=keys, how="left"
+    )
 
-    rec["Shift_Centroid_km"] = haversine_km(rec["Orig_Lat"], rec["Orig_Lon"], rec["New_Lat"], rec["New_Lon"])
+    rec["Shift_Centroid_km"] = haversine_km(
+        rec["Orig_Lat"], rec["Orig_Lon"], rec["New_Lat"], rec["New_Lon"]
+    )
     rec["Mesma_UF"] = rec["UF_Decl"] == rec["Real_UF"].astype(str)
     rec["Vizinho"] = rec["Vizinho"].fillna(False).astype(bool)
-    rec["Regime_Code"] = classify_divergent_regime(rec["Dist_Borda_km"], rec["Vizinho"], rec["Mesma_UF"])
+    rec["Regime_Code"] = classify_divergent_regime(
+        rec["Dist_Borda_km"], rec["Vizinho"], rec["Mesma_UF"]
+    )
     rec["Regime_Desc"] = rec["Regime_Code"].map(lambda k: regime_meta[k][1])
     return rec
 
@@ -1017,8 +1309,20 @@ def build_divergent_records(
 def aggregate_divergent_sites(records: pd.DataFrame) -> pd.DataFrame:
     """Collapse divergent records (one per channel) into unique physical sites."""
     site_keys = [
-        "Cod_Decl", "UF_Decl", "Mun_Decl", "Orig_Lat", "Orig_Lon", "New_Lat", "New_Lon",
-        "Real_CD_MUN", "Real_NM_MUN", "Real_UF", "Vizinho", "Mesma_UF", "Regime_Code", "Regime_Desc",
+        "Cod_Decl",
+        "UF_Decl",
+        "Mun_Decl",
+        "Orig_Lat",
+        "Orig_Lon",
+        "New_Lat",
+        "New_Lon",
+        "Real_CD_MUN",
+        "Real_NM_MUN",
+        "Real_UF",
+        "Vizinho",
+        "Mesma_UF",
+        "Regime_Code",
+        "Regime_Desc",
     ]
     aggs = dict(
         Canais_Afetados=("Log", "size"),
@@ -1060,8 +1364,16 @@ def summarize_divergent_regimes(
                 "Registros": n,
                 "%_Divergentes": round(n / max(len(records), 1) * 100.0, 2),
                 "Sites_Fisicos_Unicos": int((sites["Regime_Code"] == code).sum()),
-                "Dist_Divisa_Mediana_km": round(float(sub_r["Dist_Borda_km"].median()), 3) if n > 0 else 0.0,
-                "Shift_Centroide_Mediano_km": round(float(sub_r["Shift_Centroid_km"].median()), 2) if n > 0 else 0.0,
+                "Dist_Divisa_Mediana_km": round(
+                    float(sub_r["Dist_Borda_km"].median()), 3
+                )
+                if n > 0
+                else 0.0,
+                "Shift_Centroide_Mediano_km": round(
+                    float(sub_r["Shift_Centroid_km"].median()), 2
+                )
+                if n > 0
+                else 0.0,
             }
         )
     return pd.DataFrame(rows)
@@ -1092,7 +1404,13 @@ def divergent_concentration_metrics(
     top_uf, top_uf_n, top_uf_pct = top_share(records["UF_Decl"])
     top_ent, top_ent_n, _top_ent_pct = top_share(records["Entidade"])
     top_ent_sites = (
-        int(records.loc[records["Entidade"].astype(str) == top_ent, ["Orig_Lat", "Orig_Lon"]].drop_duplicates().shape[0])
+        int(
+            records.loc[
+                records["Entidade"].astype(str) == top_ent, ["Orig_Lat", "Orig_Lon"]
+            ]
+            .drop_duplicates()
+            .shape[0]
+        )
         if n_div
         else 0
     )
@@ -1124,7 +1442,9 @@ def divergent_concentration_metrics(
         "top_fonte": top_fonte,
         "top_fonte_n": top_fonte_n,
         "top_fonte_pct": top_fonte_pct,
-        "top_serv_lbl": servico_nomes.get(top_serv, f"Serviço {top_serv}") if n_div else "N/A",
+        "top_serv_lbl": servico_nomes.get(top_serv, f"Serviço {top_serv}")
+        if n_div
+        else "N/A",
         "top_serv_pct": top_serv_pct,
         "top_uf": top_uf,
         "top_uf_n": top_uf_n,
@@ -1139,13 +1459,22 @@ def divergent_concentration_metrics(
 def divergent_top_entities(records: pd.DataFrame, n: int = 12) -> pd.DataFrame:
     """Entities with most divergent records, with unique physical sites and median border distance."""
     if records.empty:
-        out = pd.DataFrame(columns=["Entidade", "Registros", "Sites_Unicos", "Dist_Divisa_Med_km"])
+        out = pd.DataFrame(
+            columns=["Entidade", "Registros", "Sites_Unicos", "Dist_Divisa_Med_km"]
+        )
     else:
         out = (
             records.groupby("Entidade", observed=True)
             .agg(
                 Registros=("Log", "size"),
-                Sites_Unicos=("Orig_Lat", lambda s: int(records.loc[s.index, ["Orig_Lat", "Orig_Lon"]].drop_duplicates().shape[0])),
+                Sites_Unicos=(
+                    "Orig_Lat",
+                    lambda s: int(
+                        records.loc[s.index, ["Orig_Lat", "Orig_Lon"]]
+                        .drop_duplicates()
+                        .shape[0]
+                    ),
+                ),
                 Dist_Divisa_Med_km=("Dist_Borda_km", "median"),
             )
             .sort_values("Registros", ascending=False)
@@ -1162,7 +1491,11 @@ def divergent_top_pairs(records: pd.DataFrame, n: int = 40) -> pd.DataFrame:
     if records.empty:
         return pd.DataFrame()
     out = (
-        records.groupby(["UF_Decl", "Mun_Decl", "Real_UF", "Real_NM_MUN", "Vizinho"], observed=True, as_index=False)
+        records.groupby(
+            ["UF_Decl", "Mun_Decl", "Real_UF", "Real_NM_MUN", "Vizinho"],
+            observed=True,
+            as_index=False,
+        )
         .agg(
             Registros=("Log", "size"),
             Sites_Unicos=("Orig_Lat", "nunique"),
@@ -1192,7 +1525,9 @@ def filter_divergent_sites(
     mask &= valid_wgs84_mask(sites["Orig_Lat"], sites["Orig_Lon"])
     mask &= selection_mask(sites["UF_Decl"], uf, all_option)
     mask &= selection_mask(sites["Fonte_Principal"], fonte, all_option)
-    mask &= text_search_mask(sites, ["Entidade_Principal", "Mun_Decl", "Real_NM_MUN"], query)
+    mask &= text_search_mask(
+        sites, ["Entidade_Principal", "Mun_Decl", "Real_NM_MUN"], query
+    )
     return sites[mask].copy()
 
 
@@ -1211,11 +1546,11 @@ def divergent_site_tooltip(site, color: str, desc: str) -> str:
         f"<b>Log ID:</b> {site.Exemplo_Log_ID}<br>"
         f"<hr style='margin:4px 0'>"
         f"<b>Município Declarado:</b> {esc(site.Mun_Decl)}/{esc(site.UF_Decl)} ({esc(site.Cod_Decl)})<br>"
-        f"<b>Polígono da Coord. Original:</b> {esc(site.Real_NM_MUN)}/{esc(site.Real_UF)} ({esc(site.Real_CD_MUN)})<br>"
-        f"<b>Coord. Original:</b> ({float(site.Orig_Lat):.6f}, {float(site.Orig_Lon):.6f})<br>"
-        f"<b>Centroide IBGE Substituído:</b> ({float(site.New_Lat):.6f}, {float(site.New_Lon):.6f})<br>"
+        f"<b>Polígono da Coordenada:</b> {esc(site.Real_NM_MUN)}/{esc(site.Real_UF)} ({esc(site.Real_CD_MUN)})<br>"
+        f"<b>Coordenada (preservada):</b> ({float(site.Orig_Lat):.6f}, {float(site.Orig_Lon):.6f})<br>"
+        f"<b>Centroide do Município Declarado:</b> ({float(site.New_Lat):.6f}, {float(site.New_Lon):.6f})<br>"
         f"<b>Distância até Divisa Declarada:</b> <span style='color:#d95f02;font-weight:bold'>{format_distance(site.Dist_Borda_km)}</span> | "
-        f"<b>Deslocamento p/ Centroide:</b> {format_distance(site.Shift_Centroid_km, meters_below_1km=False)}"
+        f"<b>Distância ao Centroide Declarado:</b> {format_distance(site.Shift_Centroid_km, meters_below_1km=False)}"
         f"</div>"
     )
 
@@ -1227,7 +1562,7 @@ def build_divergent_map(
     regime_codes: set[str],
     show_vectors: bool,
 ) -> folium.Map:
-    """Before -> after map: circle at the original tower coordinate, dashed vector to the IBGE centroid."""
+    """Circle at the (preserved) tower coordinate, dashed vector to the declared municipality's IBGE centroid."""
     fmap = base_folium_map([-16.5, -47.5], 5, light_basemap=True)
     layers = {
         code: folium.FeatureGroup(name=regime_meta[code][1], show=True).add_to(fmap)
@@ -1239,27 +1574,50 @@ def build_divergent_map(
         new = [float(site.New_Lat), float(site.New_Lon)]
         layer = layers[site.Regime_Code]
         if show_vectors and valid_wgs84_mask(new[0], new[1]):
-            folium.PolyLine(locations=[orig, new], color=color, weight=1.5, opacity=0.45, dash_array="4,4").add_to(layer)
+            folium.PolyLine(
+                locations=[orig, new],
+                color=color,
+                weight=1.5,
+                opacity=0.45,
+                dash_array="4,4",
+            ).add_to(layer)
         folium.CircleMarker(
             location=orig,
-            radius=float(min(12.0, max(4.5, 3.5 + np.log1p(site.Canais_Afetados) * 1.3))),
+            radius=float(
+                min(12.0, max(4.5, 3.5 + np.log1p(site.Canais_Afetados) * 1.3))
+            ),
             color=color,
             weight=1.5,
             fill=True,
             fill_color=color,
             fill_opacity=0.82,
-            tooltip=folium.Tooltip(divergent_site_tooltip(site, color, desc), sticky=True),
+            tooltip=folium.Tooltip(
+                divergent_site_tooltip(site, color, desc), sticky=True
+            ),
         ).add_to(layer)
     folium.LayerControl(collapsed=True).add_to(fmap)
     return fmap
 
 
 @app.cell
-def _(DIVERGENT_REGIME_META, SERVICO_NOMES, SHP_PATH, estacoes, log_events):
-    div_records_df = build_divergent_records(estacoes, log_events, SHP_PATH, DIVERGENT_REGIME_META)
+def _(
+    DIVERGENT_REGIME_META,
+    SERVICO_NOMES,
+    SHP_PATH,
+    estacoes,
+    ibge_mun,
+    log_events,
+):
+    div_records_df = build_divergent_records(
+        estacoes, log_events, ibge_mun, SHP_PATH, DIVERGENT_REGIME_META
+    )
     div_sites_df = aggregate_divergent_sites(div_records_df)
-    div_regime_summary_df = summarize_divergent_regimes(div_records_df, div_sites_df, DIVERGENT_REGIME_META)
-    div_metrics = divergent_concentration_metrics(div_records_df, div_sites_df, SERVICO_NOMES)
+    div_regime_summary_df = summarize_divergent_regimes(
+        div_records_df, div_sites_df, DIVERGENT_REGIME_META
+    )
+    div_metrics = divergent_concentration_metrics(
+        div_records_df, div_sites_df, SERVICO_NOMES
+    )
     div_top_entities_df = divergent_top_entities(div_records_df)
     div_top_pairs_df = divergent_top_pairs(div_records_df)
     return (
@@ -1285,12 +1643,14 @@ def _(ALL_OPTION, div_regime_summary_df, div_sites_df):
     )
 
     div_uf_select = mo.ui.dropdown(
-        options=[ALL_OPTION] + sorted(div_sites_df["UF_Decl"].astype(str).unique().tolist()),
+        options=[ALL_OPTION]
+        + sorted(div_sites_df["UF_Decl"].astype(str).unique().tolist()),
         value=ALL_OPTION,
         label="UF Declarada:",
     )
     div_fonte_select = mo.ui.dropdown(
-        options=[ALL_OPTION] + sorted(div_sites_df["Fonte_Principal"].astype(str).unique().tolist()),
+        options=[ALL_OPTION]
+        + sorted(div_sites_df["Fonte_Principal"].astype(str).unique().tolist()),
         value=ALL_OPTION,
         label="Fonte Principal:",
     )
@@ -1299,7 +1659,9 @@ def _(ALL_OPTION, div_regime_summary_df, div_sites_df):
         placeholder="Ex: POLICIA MILITAR, TELEFONICA, VALE, Nova Lima...",
         label="Buscar Entidade ou Município:",
     )
-    div_max_sites = mo.ui.slider(start=100, stop=2000, step=100, value=600, label="Máx. Sites Físicos no Mapa:")
+    div_max_sites = mo.ui.slider(
+        start=100, stop=2000, step=100, value=600, label="Máx. Sites Físicos no Mapa:"
+    )
     div_show_vectors = mo.ui.checkbox(
         value=True,
         label="Traçar vetor de deslocamento (Torre Original → Centroide IBGE)",
@@ -1336,9 +1698,21 @@ def _(
 
     _div_kpis = kpi_row(
         [
-            ("Estações c/ Coord. Divergente", f"{_m['n_div']:,}", f"{_div_pct_base:.2f}% da base ({_m['emit']:,} emissores)"),
-            ("Sites Físicos Únicos (Coord.)", f"{_m['n_sites']:,}", f"Média {_m['avg_ch_per_site']:.1f} canais/site (máx {_m['max_ch_site']:,})"),
-            ("Na Divisa / Topo de Serra (≤ 1 km)", f"{_m['n_1km']:,} ({_m['pct_1km']:.1f}%)", f"{_m['n_100m']:,} registros a ≤ 100 m da fronteira"),
+            (
+                "Estações c/ Coord. Divergente",
+                f"{_m['n_div']:,}",
+                f"{_div_pct_base:.2f}% da base ({_m['emit']:,} emissores)",
+            ),
+            (
+                "Sites Físicos Únicos (Coord.)",
+                f"{_m['n_sites']:,}",
+                f"Média {_m['avg_ch_per_site']:.1f} canais/site (máx {_m['max_ch_site']:,})",
+            ),
+            (
+                "Na Divisa / Topo de Serra (≤ 1 km)",
+                f"{_m['n_1km']:,} ({_m['pct_1km']:.1f}%)",
+                f"{_m['n_100m']:,} registros a ≤ 100 m da fronteira",
+            ),
             (
                 "Em Município Limítrofe",
                 f"{_m['n_viz']:,} ({_m['pct_viz']:.1f}%)",
@@ -1352,8 +1726,16 @@ def _(
         .mark_bar(cornerRadiusEnd=3)
         .encode(
             x=alt.X("Registros:Q", title="Estações Afetadas"),
-            y=alt.Y("Regime:N", sort=[v[1] for v in DIVERGENT_REGIME_META.values()], title=None),
-            color=alt.Color("Regime_Code:N", scale=meta_color_scale(DIVERGENT_REGIME_META), legend=None),
+            y=alt.Y(
+                "Regime:N",
+                sort=[v[1] for v in DIVERGENT_REGIME_META.values()],
+                title=None,
+            ),
+            color=alt.Color(
+                "Regime_Code:N",
+                scale=meta_color_scale(DIVERGENT_REGIME_META),
+                legend=None,
+            ),
             tooltip=[
                 "Regime",
                 alt.Tooltip("Registros:Q", format=","),
@@ -1371,15 +1753,25 @@ def _(
         .mark_bar(color="#e6550d", cornerRadiusEnd=3)
         .encode(
             x=alt.X("Registros:Q", title="Registros Divergentes"),
-            y=alt.Y("Entidade_Curta:N", sort="-x", title=f"Top {len(div_top_entities_df)} Entidades"),
+            y=alt.Y(
+                "Entidade_Curta:N",
+                sort="-x",
+                title=f"Top {len(div_top_entities_df)} Entidades",
+            ),
             tooltip=[
                 "Entidade",
                 alt.Tooltip("Registros:Q", format=","),
                 alt.Tooltip("Sites_Unicos:Q", format=",", title="Sites Físicos Únicos"),
-                alt.Tooltip("Dist_Divisa_Med_km:Q", format=".3f", title="Dist. Mediana Divisa (km)"),
+                alt.Tooltip(
+                    "Dist_Divisa_Med_km:Q",
+                    format=".3f",
+                    title="Dist. Mediana Divisa (km)",
+                ),
             ],
         )
-        .properties(width=340, height=250, title="Concentração por Entidade (Canais vs. Sites)")
+        .properties(
+            width=340, height=250, title="Concentração por Entidade (Canais vs. Sites)"
+        )
     )
 
     _sel_reg_codes = set(div_regime_select.value)
@@ -1392,15 +1784,34 @@ def _(
         ALL_OPTION,
     )
     _total_filtered_sites = len(_filtered_sites)
-    _total_filtered_rows = int(_filtered_sites["Canais_Afetados"].sum()) if _total_filtered_sites > 0 else 0
+    _total_filtered_rows = (
+        int(_filtered_sites["Canais_Afetados"].sum())
+        if _total_filtered_sites > 0
+        else 0
+    )
     _plot_sites = _filtered_sites.head(int(div_max_sites.value))
-    _div_map = build_divergent_map(_plot_sites, DIVERGENT_REGIME_META, _sel_reg_codes, div_show_vectors.value)
+    _div_map = build_divergent_map(
+        _plot_sites, DIVERGENT_REGIME_META, _sel_reg_codes, div_show_vectors.value
+    )
 
     _sites_display = _filtered_sites[
         [
-            "Regime_Desc", "Canais_Afetados", "UF_Decl", "Mun_Decl", "Real_UF", "Real_NM_MUN", "Vizinho",
-            "Dist_Borda_km", "Shift_Centroid_km", "Entidade_Principal", "Fonte_Principal", "Servico_Principal",
-            "Orig_Lat", "Orig_Lon", "Exemplo_Estacao", "Exemplo_Log_ID",
+            "Regime_Desc",
+            "Canais_Afetados",
+            "UF_Decl",
+            "Mun_Decl",
+            "Real_UF",
+            "Real_NM_MUN",
+            "Vizinho",
+            "Dist_Borda_km",
+            "Shift_Centroid_km",
+            "Entidade_Principal",
+            "Fonte_Principal",
+            "Servico_Principal",
+            "Orig_Lat",
+            "Orig_Lon",
+            "Exemplo_Estacao",
+            "Exemplo_Log_ID",
         ]
     ].round({"Dist_Borda_km": 3, "Shift_Centroid_km": 2, "Orig_Lat": 6, "Orig_Lon": 6})
 
@@ -1408,13 +1819,13 @@ def _(
         [
             mo.md(
                 f"""
-    ## 4. Investigação Especial — Por que há `{_m['n_div']:,}` estações com `IBGE_COORD_DIVERGENTE`?
-    A mensagem `"Coordenadas divergentes (Polígono do IBGE retorna município distinto). Coordenadas do Município do IBGE."` é disparada em `Geography.substitute_divergent_coordinates()` sempre que o ponto `(Latitude, Longitude)` cai em um polígono municipal do IBGE diferente do `Código_Município` declarado. A auditoria geoespacial das coordenadas originais (`#Latitude`, `#Longitude` preservadas no `Log`) revela **quatro fatores estruturais**:
+    ## 4. Investigação Especial — Por que há `{_m["n_div"]:,}` estações com `IBGE_COORD_DIVERGENTE`?
+    A mensagem `"IBGE: Município distinto."` é registrada sempre que o ponto `(Latitude, Longitude)` cai em um polígono municipal do IBGE diferente do `Código_Município` declarado (o nome do município do polígono, `NM_MUN`, fica em `Valor`). As coordenadas **não são substituídas** — são consideradas a melhor fonte de verdade. A auditoria geoespacial dessas coordenadas revela **quatro fatores estruturais**:
 
-    1. **Amplificação por multicanalização (`{_m['n_sites']:,}` sites físicos → `{_m['n_div']:,}` linhas):** Como o agrupamento preserva uma linha por `Frequência`, estações repetidoras multicanal multiplicam o evento. `{_m['top_fonte']}` concentra **{_m['top_fonte_pct']:.1f}%** dos casos ({_m['top_fonte_n']:,} linhas) e `{_m['top_serv_lbl']}` responde por **{_m['top_serv_pct']:.1f}%**. Apenas **{_m['n_heavy_sites']:,} sites físicos** com ≥{_m['heavy_site_channels']} frequências somam **{_m['n_heavy_rows']:,} linhas ({_m['pct_heavy_rows']:.1f}%)** — liderados em `{_m['top_uf']}` (**{_m['top_uf_pct']:.1f}%**, {_m['top_uf_n']:,} linhas) por `{_m['top_ent']}` (**{_m['top_ent_n']:,} linhas** em apenas **{_m['top_ent_sites']:,} coordenadas únicas**).
-    2. **Efeito de Fronteira, Crista de Serra e Datum (`{_m['n_1km']:,}` linhas = `{_m['pct_1km']:.1f}%` a ≤ 1 km da divisa):** **{_m['n_100m']:,} linhas** estão a **≤ 100 m** do limite municipal declarado (margem típica de deslocamento SAD69→SIRGAS2000 ~65 m, arredondamento de segundos DMS ~30 m e generalização da malha IBGE), e outras **{_m['n_1km'] - _m['n_100m']:,}** entre **100 m e 1 km** (parques de antenas em topos de serra divisórios).
-    3. **Conurbação e Plantas Limítrofes (`{_m['n_viz']:,}` linhas = `{_m['pct_viz']:.1f}%` em município vizinho):** A grande maioria ocorre entre municípios com fronteira comum (redes metropolitanas, mineradoras, usinas e fazendas intermunicipais). Como a regra atual não aplica *buffer* de tolerância na divisa, em **{_m['pct_shift_worse']:.1f}%** dos registros o deslocamento imposto até o centroide municipal (mediana **{_m['med_shift']:.2f} km**) é maior que a distância original até a divisa (mediana **{_m['med_borda']:.2f} km**).
-    4. **Erros Cadastrais Genuínos à Distância (`{_m['n_non_viz']:,}` linhas = `{_m['pct_non_viz']:.1f}%` em municípios não-vizinhos / outra UF):** Coordenadas de sede copiadas para licenças do interior ou erros de digitação em graus/minutos — casos em que substituir pelo centroide IBGE corrige distorções de dezenas a centenas de quilômetros.
+    1. **Amplificação por multicanalização (`{_m["n_sites"]:,}` sites físicos → `{_m["n_div"]:,}` linhas):** Como o agrupamento preserva uma linha por `Frequência`, estações repetidoras multicanal multiplicam o evento. `{_m["top_fonte"]}` concentra **{_m["top_fonte_pct"]:.1f}%** dos casos ({_m["top_fonte_n"]:,} linhas) e `{_m["top_serv_lbl"]}` responde por **{_m["top_serv_pct"]:.1f}%**. Apenas **{_m["n_heavy_sites"]:,} sites físicos** com ≥{_m["heavy_site_channels"]} frequências somam **{_m["n_heavy_rows"]:,} linhas ({_m["pct_heavy_rows"]:.1f}%)** — liderados em `{_m["top_uf"]}` (**{_m["top_uf_pct"]:.1f}%**, {_m["top_uf_n"]:,} linhas) por `{_m["top_ent"]}` (**{_m["top_ent_n"]:,} linhas** em apenas **{_m["top_ent_sites"]:,} coordenadas únicas**).
+    2. **Efeito de Fronteira, Crista de Serra e Datum (`{_m["n_1km"]:,}` linhas = `{_m["pct_1km"]:.1f}%` a ≤ 1 km da divisa):** **{_m["n_100m"]:,} linhas** estão a **≤ 100 m** do limite municipal declarado (margem típica de deslocamento SAD69→SIRGAS2000 ~65 m, arredondamento de segundos DMS ~30 m e generalização da malha IBGE), e outras **{_m["n_1km"] - _m["n_100m"]:,}** entre **100 m e 1 km** (parques de antenas em topos de serra divisórios).
+    3. **Conurbação e Plantas Limítrofes (`{_m["n_viz"]:,}` linhas = `{_m["pct_viz"]:.1f}%` em município vizinho):** A grande maioria ocorre entre municípios com fronteira comum (redes metropolitanas, mineradoras, usinas e fazendas intermunicipais). Como a regra não aplica *buffer* de tolerância na divisa, em **{_m["pct_shift_worse"]:.1f}%** dos registros a distância até o centroide do município declarado (mediana **{_m["med_shift"]:.2f} km**) é maior que a distância original até a divisa (mediana **{_m["med_borda"]:.2f} km**).
+    4. **Erros Cadastrais Genuínos à Distância (`{_m["n_non_viz"]:,}` linhas = `{_m["pct_non_viz"]:.1f}%` em municípios não-vizinhos / outra UF):** Coordenadas de sede copiadas para licenças do interior ou erros de digitação em graus/minutos — casos em que a coordenada e o município declarado divergem por de dezenas a centenas de quilômetros.
     """
             ),
             _div_kpis,
@@ -1422,17 +1833,32 @@ def _(
                 {
                     "📊 Regimes, Entidades & Pares": mo.vstack(
                         [
-                            mo.hstack([_chart_regimes, _chart_div_ent], justify="start"),
+                            mo.hstack(
+                                [_chart_regimes, _chart_div_ent], justify="start"
+                            ),
                             mo.md("### Síntese Quantitativa por Regime Geoespacial"),
                             mo.ui.table(div_regime_summary_df, pagination=False),
-                            mo.md("### Top Pares (Município Declarado → Polígono Real da Coordenada Original)"),
-                            mo.ui.table(div_top_pairs_df, pagination=True, page_size=12),
+                            mo.md(
+                                "### Top Pares (Município Declarado → Polígono Real da Coordenada Original)"
+                            ),
+                            mo.ui.table(
+                                div_top_pairs_df, pagination=True, page_size=12
+                            ),
                         ]
                     ),
-                    "🗺️ Mapa Antes → Depois (Vetores)": mo.vstack(
+                    "🗺️ Mapa Coordenada → Centroide Declarado (Vetores)": mo.vstack(
                         [
-                            mo.hstack([div_uf_select, div_fonte_select, div_entity_search], widths="equal"),
-                            mo.hstack([div_regime_select, mo.vstack([div_max_sites, div_show_vectors])], widths=[2, 1]),
+                            mo.hstack(
+                                [div_uf_select, div_fonte_select, div_entity_search],
+                                widths="equal",
+                            ),
+                            mo.hstack(
+                                [
+                                    div_regime_select,
+                                    mo.vstack([div_max_sites, div_show_vectors]),
+                                ],
+                                widths=[2, 1],
+                            ),
                             mo.callout(
                                 mo.md(
                                     f"Exibindo **{len(_plot_sites):,}** de **{_total_filtered_sites:,} sites físicos** filtrados "
@@ -1446,7 +1872,9 @@ def _(
                     ),
                     "🗼 Tabela de Sites Físicos Filtrados": mo.vstack(
                         [
-                            mo.md(f"Detalhamento dos **{_total_filtered_sites:,} sites físicos** (**{_total_filtered_rows:,} canais**) nos filtros atuais:"),
+                            mo.md(
+                                f"Detalhamento dos **{_total_filtered_sites:,} sites físicos** (**{_total_filtered_rows:,} canais**) nos filtros atuais:"
+                            ),
                             mo.ui.table(_sites_display, pagination=True, page_size=15),
                         ]
                     ),
@@ -1459,7 +1887,9 @@ def _(
 
 @app.function
 @mo.persistent_cache
-def compute_polygon_lookup(coords_frame: pd.DataFrame, shp_path_str: str) -> pd.DataFrame:
+def compute_polygon_lookup(
+    coords_frame: pd.DataFrame, shp_path_str: str
+) -> pd.DataFrame:
     """Intersect unique (Latitude, Longitude) pairs against official IBGE municipal polygons."""
     regions = gpd.read_file(shp_path_str, columns=["CD_MUN", "NM_MUN", "SIGLA_UF"])
     lat_u = pd.to_numeric(coords_frame["Latitude"], errors="coerce")
@@ -1492,28 +1922,43 @@ def compute_polygon_lookup(coords_frame: pd.DataFrame, shp_path_str: str) -> pd.
 
 
 @app.function
-def map_polygon_lookup(estacoes: pd.DataFrame, lookup: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def map_polygon_lookup(
+    estacoes: pd.DataFrame, lookup: pd.DataFrame
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Broadcast the unique-coordinate polygon lookup back to every station row -> (cd, nm, uf)."""
     idx = pd.MultiIndex.from_frame(estacoes[["Latitude", "Longitude"]].astype(str))
     lkp = lookup.set_index(["Latitude", "Longitude"])
-    return tuple(lkp[c].reindex(idx).fillna("").to_numpy(dtype=object) for c in ("poly_cd", "poly_nm", "poly_uf"))
+    return tuple(
+        lkp[c].reindex(idx).fillna("").to_numpy(dtype=object)
+        for c in ("poly_cd", "poly_nm", "poly_uf")
+    )
 
 
 @app.function
-def declared_ibge_attributes(codes: pd.Series, ibge_mun: pd.DataFrame) -> dict[str, np.ndarray]:
+def declared_ibge_attributes(
+    codes: pd.Series, ibge_mun: pd.DataFrame
+) -> dict[str, np.ndarray]:
     """Centroid lat/lon, UF and name of the declared IBGE municipality code for each row."""
     cod = codes.astype(str)
     key = ibge_mun["Código_Município"]
     return {
-        "lat": cod.map(dict(zip(key, ibge_mun["Latitude"].astype(float)))).to_numpy(dtype="float64"),
-        "lon": cod.map(dict(zip(key, ibge_mun["Longitude"].astype(float)))).to_numpy(dtype="float64"),
+        "lat": cod.map(dict(zip(key, ibge_mun["Latitude"].astype(float)))).to_numpy(
+            dtype="float64"
+        ),
+        "lon": cod.map(dict(zip(key, ibge_mun["Longitude"].astype(float)))).to_numpy(
+            dtype="float64"
+        ),
         "uf": cod.map(dict(zip(key, ibge_mun["UF"]))).fillna("").to_numpy(dtype=object),
-        "name": cod.map(dict(zip(key, ibge_mun["Município"]))).fillna("").to_numpy(dtype=object),
+        "name": cod.map(dict(zip(key, ibge_mun["Município"])))
+        .fillna("")
+        .to_numpy(dtype=object),
     }
 
 
 @app.function
-def detect_dirty_numeric_strings(df: pd.DataFrame, columns: list[str]) -> tuple[np.ndarray, np.ndarray]:
+def detect_dirty_numeric_strings(
+    df: pd.DataFrame, columns: list[str]
+) -> tuple[np.ndarray, np.ndarray]:
     """Rows whose engineering columns hold non-numeric text (besides '-1') -> (mask, 'col=value; ...' detail)."""
     mask = np.zeros(len(df), dtype=bool)
     detail = np.full(len(df), "", dtype=object)
@@ -1561,21 +2006,45 @@ def classify_primary_issue(
     phys_outlier: np.ndarray,
 ) -> np.ndarray:
     """Assign one residual-issue code (keys of ISSUE_META) per row; later assignments have higher priority."""
-    miss_coord = (estacoes["Latitude"] == "-1").to_numpy() | (estacoes["Longitude"] == "-1").to_numpy()
+    miss_coord = (estacoes["Latitude"] == "-1").to_numpy() | (
+        estacoes["Longitude"] == "-1"
+    ).to_numpy()
     has_coord = (~miss_coord) & (~np.isnan(lat)) & (~np.isnan(lon))
     outside = has_coord & (poly_cd == "")
 
     polar = outside & ((np.abs(lat) > 60) | (np.abs(lon) > 180))
     null_island = outside & ~polar & (np.abs(lat) < 1.0) & (np.abs(lon) < 1.0)
-    swapped = outside & ~polar & ~null_island & (lat < -34.0) & (lat >= -74.5) & (lon >= -34.0) & (lon <= 6.0)
+    swapped = (
+        outside
+        & ~polar
+        & ~null_island
+        & (lat < -34.0)
+        & (lat >= -74.5)
+        & (lon >= -34.0)
+        & (lon <= 6.0)
+    )
     sign_lon = outside & ~polar & ~null_island & ~swapped & (lon > 28.0) & (lon <= 75.0)
-    sign_lat = outside & ~polar & ~null_island & ~swapped & ~sign_lon & (lat > 5.35) & (lon >= -74.5) & (lon <= -34.0)
+    sign_lat = (
+        outside
+        & ~polar
+        & ~null_island
+        & ~swapped
+        & ~sign_lon
+        & (lat > 5.35)
+        & (lon >= -74.5)
+        & (lon <= -34.0)
+    )
     offshore = (
         outside
         & ~(polar | null_island | swapped | sign_lon | sign_lat)
-        & (lon > -53.0) & (lon <= -28.5) & (lat >= -34.5) & (lat <= 6.0)
+        & (lon > -53.0)
+        & (lon <= -28.5)
+        & (lat >= -34.5)
+        & (lat <= 6.0)
     )
-    foreign = outside & ~(polar | null_island | swapped | sign_lon | sign_lat | offshore)
+    foreign = outside & ~(
+        polar | null_island | swapped | sign_lon | sign_lat | offshore
+    )
 
     cod = estacoes["Código_Município"].astype(str).to_numpy()
     uf = estacoes["UF"].astype(str).to_numpy()
@@ -1583,7 +2052,9 @@ def classify_primary_issue(
     inside = has_coord & (poly_cd != "")
     wrong_uf_poly = inside & (uf != "-1") & (uf_trimmed != poly_uf)
     wrong_mun_poly = inside & ~wrong_uf_poly & (cod != "-1") & (cod != poly_cd)
-    uf_whitespace = (uf != uf_trimmed) | ((cod != "-1") & (declared_uf != "") & (uf_trimmed != declared_uf))
+    uf_whitespace = (uf != uf_trimmed) | (
+        (cod != "-1") & (declared_uf != "") & (uf_trimmed != declared_uf)
+    )
     missing_mun_or_uf = (cod == "-1") | (uf == "-1")
 
     issue = np.full(len(estacoes), "00_OK_Consistente", dtype=object)
@@ -1606,7 +2077,9 @@ def classify_primary_issue(
 
 
 @app.function
-def summarize_issues(primary_issue: np.ndarray, issue_meta: dict[str, tuple[str, str]]) -> pd.DataFrame:
+def summarize_issues(
+    primary_issue: np.ndarray, issue_meta: dict[str, tuple[str, str]]
+) -> pd.DataFrame:
     """Record count and share for every issue code in `issue_meta` (zero-filled)."""
     counts = pd.Series(primary_issue).value_counts()
     n_total = max(len(primary_issue), 1)
@@ -1680,7 +2153,9 @@ def issue_points_table(points: pd.DataFrame) -> pd.DataFrame:
 
 
 @app.function
-def station_tooltip(p: dict, color: str, desc: str, log_summary: str, max_log_chars: int = 180) -> str:
+def station_tooltip(
+    p: dict, color: str, desc: str, log_summary: str, max_log_chars: int = 180
+) -> str:
     """HTML tooltip for one station (a record from `build_issue_points(...).to_dict('records')`)."""
     esc = lambda v: html.escape(str(v))
     log_txt = esc(log_summary)
@@ -1689,8 +2164,16 @@ def station_tooltip(p: dict, color: str, desc: str, log_summary: str, max_log_ch
     mun_decl = p["Município"]
     if mun_decl == "-1" and p["IBGE_Nome"]:
         mun_decl = f"-1 (IBGE p/ código: {p['IBGE_Nome']})"
-    poly_info = f"{p['Poly_NM']} / {p['Poly_UF']} ({p['Poly_CD']})" if p["Poly_CD"] else "FORA DA MALHA TERRESTRE IBGE"
-    dirty_line = f"<br><b style='color:#b15928'>Texto Sujo Eng.:</b> {esc(p['Dirty'])}" if p["Dirty"] else ""
+    poly_info = (
+        f"{p['Poly_NM']} / {p['Poly_UF']} ({p['Poly_CD']})"
+        if p["Poly_CD"]
+        else "FORA DA MALHA TERRESTRE IBGE"
+    )
+    dirty_line = (
+        f"<br><b style='color:#b15928'>Texto Sujo Eng.:</b> {esc(p['Dirty'])}"
+        if p["Dirty"]
+        else ""
+    )
     return (
         f"<div style='font-family:sans-serif;font-size:12px;min-width:290px;max-width:380px;'>"
         f"<div style='background:{color};color:#fff;padding:4px 7px;border-radius:4px;font-weight:bold;margin-bottom:5px;'>"
@@ -1741,7 +2224,9 @@ def build_issue_map(
             fill_color=color,
             fill_opacity=0.8,
             tooltip=folium.Tooltip(
-                station_tooltip(p, color, desc, log_summaries.get(int(p["Log_ID"]), "")),
+                station_tooltip(
+                    p, color, desc, log_summaries.get(int(p["Log_ID"]), "")
+                ),
                 sticky=True,
             ),
         ).add_to(layer_for(p["Diagnostico"]))
@@ -1760,10 +2245,15 @@ def _(
     lon_num,
 ):
     coord_poly_lookup = compute_polygon_lookup(
-        estacoes[["Latitude", "Longitude"]].astype(str).drop_duplicates().reset_index(drop=True),
+        estacoes[["Latitude", "Longitude"]]
+        .astype(str)
+        .drop_duplicates()
+        .reset_index(drop=True),
         SHP_PATH,
     )
-    poly_cd_arr, poly_nm_arr, poly_uf_arr = map_polygon_lookup(estacoes, coord_poly_lookup)
+    poly_cd_arr, poly_nm_arr, poly_uf_arr = map_polygon_lookup(
+        estacoes, coord_poly_lookup
+    )
 
     _decl = declared_ibge_attributes(estacoes["Código_Município"], ibge_mun)
     ibge_mun_name_arr = _decl["name"]
@@ -1772,9 +2262,16 @@ def _(
     # Distance from each station to the centroid of its declared IBGE municipality
     _valid_hav = valid_wgs84_mask(lat_num, lon_num) & ~np.isnan(_decl["lat"])
     dist_ibge_km = np.full(len(estacoes), np.nan, dtype="float64")
-    dist_ibge_km[_valid_hav] = haversine_km(lat_num[_valid_hav], lon_num[_valid_hav], _decl["lat"][_valid_hav], _decl["lon"][_valid_hav])
+    dist_ibge_km[_valid_hav] = haversine_km(
+        lat_num[_valid_hav],
+        lon_num[_valid_hav],
+        _decl["lat"][_valid_hav],
+        _decl["lon"][_valid_hav],
+    )
 
-    dirty_eng_mask, dirty_eng_detail = detect_dirty_numeric_strings(estacoes, ENG_NUMERIC_COLS)
+    dirty_eng_mask, dirty_eng_detail = detect_dirty_numeric_strings(
+        estacoes, ENG_NUMERIC_COLS
+    )
     phys_outlier_arr = physical_outlier_mask(estacoes)
 
     primary_issue = classify_primary_issue(
@@ -1822,9 +2319,17 @@ def _(ALL_OPTION, DEFAULT_MAP_ISSUES, estacoes, issue_summary_df):
         value=ALL_OPTION,
         label="Filtrar Fonte:",
     )
-    map_max_points = mo.ui.slider(start=200, stop=5000, step=200, value=1500, label="Máx. Pontos no Mapa:")
-    map_cluster_toggle = mo.ui.checkbox(value=False, label="Agrupar marcadores (MarkerCluster)")
-    map_entity_search = mo.ui.text(value="", placeholder="Ex: PETROBRAS, PRYMUS, CLARO...", label="Buscar Entidade:")
+    map_max_points = mo.ui.slider(
+        start=200, stop=100000, step=200, value=50000, label="Máx. Pontos no Mapa:"
+    )
+    map_cluster_toggle = mo.ui.checkbox(
+        value=False, label="Agrupar marcadores (MarkerCluster)"
+    )
+    map_entity_search = mo.ui.text(
+        value="",
+        placeholder="Ex: PETROBRAS, PRYMUS, CLARO...",
+        label="Buscar Entidade:",
+    )
     return (
         map_cluster_toggle,
         map_entity_search,
@@ -1859,7 +2364,9 @@ def _(
     primary_issue,
 ):
     _selected_codes = set(map_issue_select.value)
-    _mask = np.isin(primary_issue, list(_selected_codes)) & valid_wgs84_mask(lat_num, lon_num)
+    _mask = np.isin(primary_issue, list(_selected_codes)) & valid_wgs84_mask(
+        lat_num, lon_num
+    )
     _mask &= selection_mask(estacoes["UF"], map_uf_select.value, ALL_OPTION)
     _mask &= selection_mask(estacoes["Fonte"], map_fonte_select.value, ALL_OPTION)
     _mask &= text_search_mask(estacoes, ["Entidade"], map_entity_search.value)
@@ -1898,18 +2405,34 @@ def _(
     _n_ok = _count("00_OK_Consistente")
     _pct_ok = _n_ok / max(len(estacoes), 1) * 100.0
     _n_offshore = _count("07_Offshore_Maritimo_Ilhas")
-    _n_poly_div_res = _count("05_Poligono_UF_Divergente", "06_Poligono_Municipio_Divergente")
-    _n_crit_coord = _count("01_Null_Island_ou_Polar_Invalido", "02_Lat_Lon_Invertidas", "03_Sinal_Invertido_Hemisferio")
+    _n_poly_div_res = _count(
+        "05_Poligono_UF_Divergente", "06_Poligono_Municipio_Divergente"
+    )
+    _n_crit_coord = _count(
+        "01_Null_Island_ou_Polar_Invalido",
+        "02_Lat_Lon_Invertidas",
+        "03_Sinal_Invertido_Hemisferio",
+    )
     _n_foreign = _count("04_Fora_Fronteira_Terrestre")
     _n_dirty_eng = _count("08_Texto_Sujo_Coluna_Numerica")
     _n_phys_out = _count("09_Outlier_Fisico_Antena_Torre")
-    _n_uf_dirty = _count("10_UF_Com_Espaco_ou_Divergente", "11_Sem_Codigo_Municipio_ou_UF")
+    _n_uf_dirty = _count(
+        "10_UF_Com_Espaco_ou_Divergente", "11_Sem_Codigo_Municipio_ou_UF"
+    )
     _n_no_coord = _count("00_Sem_Coordenadas_-1")
 
     _res_kpis = kpi_row(
         [
-            ("Consistentes c/ Malha IBGE", f"{_n_ok:,}", f"{_pct_ok:.2f}% do total consolidado"),
-            ("Offshore / Costeiro", f"{_n_offshore:,}", "Plataformas marítimas, pré-sal e ilhas"),
+            (
+                "Consistentes c/ Malha IBGE",
+                f"{_n_ok:,}",
+                f"{_pct_ok:.2f}% do total consolidado",
+            ),
+            (
+                "Offshore / Costeiro",
+                f"{_n_offshore:,}",
+                "Plataformas marítimas, pré-sal e ilhas",
+            ),
             (
                 "Fronteira / Críticos no Mar",
                 f"{_n_foreign + _n_crit_coord:,}",
@@ -1924,15 +2447,34 @@ def _(
     )
 
     _issue_chart = (
-        alt.Chart(issue_summary_df[(issue_summary_df["Codigo"] != "00_OK_Consistente") & (issue_summary_df["Registros"] > 0)])
+        alt.Chart(
+            issue_summary_df[
+                (issue_summary_df["Codigo"] != "00_OK_Consistente")
+                & (issue_summary_df["Registros"] > 0)
+            ]
+        )
         .mark_bar(cornerRadiusEnd=3)
         .encode(
-            x=alt.X("Registros:Q", title="Registros Residualmente Sinalizados (escala symlog)", scale=alt.Scale(type="symlog")),
+            x=alt.X(
+                "Registros:Q",
+                title="Registros Residualmente Sinalizados (escala symlog)",
+                scale=alt.Scale(type="symlog"),
+            ),
             y=alt.Y("Descricao:N", sort="-x", title=None),
-            color=alt.Color("Codigo:N", scale=meta_color_scale(ISSUE_META), legend=None),
-            tooltip=["Codigo", "Descricao", alt.Tooltip("Registros:Q", format=","), "%_Total"],
+            color=alt.Color(
+                "Codigo:N", scale=meta_color_scale(ISSUE_META), legend=None
+            ),
+            tooltip=[
+                "Codigo",
+                "Descricao",
+                alt.Tooltip("Registros:Q", format=","),
+                "%_Total",
+            ],
         )
-        .properties(height=300, title="Panorama Atual de Registros Fora da Malha Terrestre ou com Alertas de Engenharia")
+        .properties(
+            height=300,
+            title="Panorama Atual de Registros Fora da Malha Terrestre ou com Alertas de Engenharia",
+        )
     )
 
     mo.vstack(
@@ -1952,8 +2494,17 @@ def _(
                 {
                     "🗺️ Mapa Folium Interativo (Tooltips)": mo.vstack(
                         [
-                            mo.hstack([map_uf_select, map_fonte_select, map_entity_search], widths="equal"),
-                            mo.hstack([map_issue_select, mo.vstack([map_max_points, map_cluster_toggle])], widths=[2, 1]),
+                            mo.hstack(
+                                [map_uf_select, map_fonte_select, map_entity_search],
+                                widths="equal",
+                            ),
+                            mo.hstack(
+                                [
+                                    map_issue_select,
+                                    mo.vstack([map_max_points, map_cluster_toggle]),
+                                ],
+                                widths=[2, 1],
+                            ),
                             mo.callout(
                                 mo.md(
                                     f"Exibindo **{len(_matched_idx):,}** de **{_total_matched:,}** registros filtrados no mapa. "
@@ -1972,7 +2523,9 @@ def _(
                     ),
                     "🧾 Registros Problemáticos Filtrados": mo.vstack(
                         [
-                            mo.md(f"Tabela detalhada dos **{len(_table_out):,}** registros atualmente exibidos no filtro do mapa:"),
+                            mo.md(
+                                f"Tabela detalhada dos **{len(_table_out):,}** registros atualmente exibidos no filtro do mapa:"
+                            ),
                             mo.ui.table(_table_out, pagination=True, page_size=15),
                         ]
                     ),
@@ -1980,6 +2533,11 @@ def _(
             ),
         ]
     )
+    return
+
+
+@app.cell
+def _():
     return
 
 
