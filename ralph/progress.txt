@@ -38,3 +38,8 @@
   inputs and shapefile components before processing to prevent Geography from downloading or
   replacing files when local components are missing. The only saved baseline files are the
   four requested outputs; non-Mosaico sources are processed from cache but not saved.
+- FULL-02 completed: added `compare` to regenerate the grouped outputs in a temporary directory
+  and compare all four parquet files against the baseline using exact dtype-aware frame
+  equality. Mismatches report shapes, columns, and the first differing rows. Added passing
+  in-memory equal/mismatch tests. Verified `compare --sample 50000` and
+  `.venv/bin/python -m unittest tests.test_full_pipeline_check`.

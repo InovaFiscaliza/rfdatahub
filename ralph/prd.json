@@ -47,7 +47,7 @@
         ".venv/bin/python scripts/full_pipeline_check.py compare --sample 50000",
         ".venv/bin/python -m unittest tests.test_full_pipeline_check"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Every later ticket that touches pipeline code re-runs `compare --sample 50000` as its regression gate."
     },
     {

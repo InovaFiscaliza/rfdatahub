@@ -3,6 +3,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import pandas as pd
+
 from scripts import full_pipeline_check
 
 
@@ -28,6 +30,23 @@ class OfflineInputTests(unittest.TestCase):
                     full_pipeline_check._check_offline_inputs()
                 shapefile.with_suffix(".shx").touch()
                 full_pipeline_check._check_offline_inputs()
+
+
+class FrameComparisonTests(unittest.TestCase):
+    def test_equal_frames_pass(self):
+        frame = pd.DataFrame({"value": ["expected"]})
+
+        full_pipeline_check.assert_frames_equal("tiny", frame, frame.copy())
+
+    def test_perturbed_frame_reports_shape_columns_and_first_difference(self):
+        actual = pd.DataFrame({"value": ["actual"]})
+        expected = pd.DataFrame({"value": ["baseline"]})
+
+        with self.assertRaisesRegex(
+            AssertionError,
+            "tiny differs from baseline.*first differing rows=.*actual.*baseline",
+        ):
+            full_pipeline_check.assert_frames_equal("tiny", actual, expected)
 
 
 if __name__ == "__main__":

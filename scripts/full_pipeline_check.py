@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 import time
 from pathlib import Path
 
@@ -98,6 +99,49 @@ def _run_grouped(output_dir: Path, sample: int) -> dict[str, pd.DataFrame]:
     }
 
 
+def assert_frames_equal(
+    name: str, actual: pd.DataFrame, expected: pd.DataFrame
+) -> None:
+    try:
+        pd.testing.assert_frame_equal(actual, expected, check_dtype=True)
+    except AssertionError as error:
+        actual_columns = actual.columns.tolist()
+        expected_columns = expected.columns.tolist()
+        differing_rows = []
+        for index in range(max(len(actual), len(expected))):
+            has_actual = index < len(actual)
+            has_expected = index < len(expected)
+            actual_row = actual.iloc[index] if has_actual else "<missing>"
+            expected_row = expected.iloc[index] if has_expected else "<missing>"
+            rows_differ = (
+                not has_actual
+                or not has_expected
+                or not actual_row.equals(expected_row)
+            )
+            if rows_differ:
+                differing_rows.append(
+                    {
+                        "index": index,
+                        "actual": (
+                            actual_row.to_dict() if has_actual else actual_row
+                        ),
+                        "baseline": (
+                            expected_row.to_dict() if has_expected else expected_row
+                        ),
+                    }
+                )
+                if len(differing_rows) == 3:
+                    break
+
+        raise AssertionError(
+            f"{name} differs from baseline: "
+            f"actual shape={actual.shape}, baseline shape={expected.shape}; "
+            f"actual columns={actual_columns}, baseline columns={expected_columns}; "
+            f"first differing rows={differing_rows or 'none (likely dtype/index mismatch)'}; "
+            f"pandas diff: {error}"
+        ) from error
+
+
 @app.command()
 def baseline(
     sample: int = typer.Option(0, min=0, help="Process only the first N telecom/SMP raw rows."),
@@ -115,6 +159,34 @@ def baseline(
     for name, df in results.items():
         print(f"{name}: {len(df):,} rows")
     print(f"Elapsed: {elapsed:.1f} seconds")
+
+
+@app.command()
+def compare(
+    sample: int = typer.Option(0, min=0, help="Process only the first N telecom/SMP raw rows."),
+    out: Path = typer.Option(
+        DEFAULT_OUTPUT_DIR, help="Directory containing the grouped baseline."
+    ),
+) -> None:
+    """Compare a fresh offline grouped run against the saved baseline."""
+    baseline_dir = out / f"sample_{sample}" if sample else out
+    with tempfile.TemporaryDirectory(prefix="rfdatahub-compare-") as temp_dir:
+        actual_dir = Path(temp_dir)
+        _run_grouped(actual_dir, sample)
+
+        differences = []
+        for name in ("telecom", "smp", "estacoes", "log"):
+            actual = pd.read_parquet(actual_dir / f"{name}.parquet")
+            expected = pd.read_parquet(baseline_dir / f"{name}.parquet")
+            try:
+                assert_frames_equal(name, actual, expected)
+            except AssertionError as error:
+                differences.append(str(error))
+
+    if differences:
+        typer.echo("\n".join(differences), err=True)
+        raise typer.Exit(code=1)
+    print(f"Grouped outputs match baseline: {baseline_dir}")
 
 
 if __name__ == "__main__":
