@@ -116,9 +116,8 @@ class Mosaico(Base, GetAttr):
         df_sub = df[~duplicated].dropna(subset=agg_cols).reset_index(drop=True)
         grouped = df.groupby(agg_cols, dropna=True, sort=False, observed=True)
         df_sub["Multiplicidade"] = grouped.size().values
-        df_sub["#Estação"] = (
-            grouped["Estação"].apply(lambda x: list(x)).values.astype("string")
-        )
+        df_sub["#Estação"] = grouped["Estação"].apply(lambda x: list(x)).values
+        df_sub["#Estação"] = df_sub["#Estação"].astype("string")
         row_filter = df_sub["Multiplicidade"] > 1
         processing = f"{log}: {agg_cols}"
         return Mosaico.register_log(
