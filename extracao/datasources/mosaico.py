@@ -74,7 +74,6 @@ class Mosaico(Base, GetAttr):
         """Parse a bandwidth string
         It returns the numerical component and a character class
         """
-
         # split then explode
         df["Temp"] = (
             df["Designação_Emissão"]
@@ -84,19 +83,13 @@ class Mosaico(Base, GetAttr):
             .str.upper()
             .str.split()
         )
-        # Log
-        # processing = 'Largura e Classe de Emissão individuais extraídas'
-        # Base.register_log(df, processing, 'Designação_Emissão')
 
         df = df.explode("Temp", ignore_index=True)
-
         # Removes empty rows
         df = df[df["Temp"] != "/"]
         df["Temp"] = df["Temp"].astype("string").fillna("")
-
         # Apply the parse_bw function
         parsed_data = zip(*df["Temp"].apply(Base.parse_bw))
-
         df["Largura_Emissão(kHz)"], df["Classe_Emissão"] = parsed_data
         df["Largura_Emissão(kHz)"] = df["Largura_Emissão(kHz)"].astype("string")
         df["Classe_Emissão"] = df["Classe_Emissão"].astype("string")
@@ -119,34 +112,13 @@ class Mosaico(Base, GetAttr):
             df["Largura_Emissão(kHz)"], errors="coerce"
         )
         duplicated = df.duplicated(subset=agg_cols, keep="first")
-
-        # Log discarded
-        # df_temp = df[duplicated]
-        # processing = f'Registro agrupado no arquivo final. Colunas Consideradas: {agg_cols}'
-        # Mosaico.register_log(df_temp, processing)
-        # self.append2discarded(df_temp)
-        # del df_temp
-        # gc.collect()
-
         # I didn't find a better way to do this, the LLMs suggestions were wrong!
         df_sub = df[~duplicated].dropna(subset=agg_cols).reset_index(drop=True)
-        # df_temp = df_temp.loc[~df_temp.index.isin(df_sub.index)]
-
-        # # Discard and Log dropped rows
-        # processing = f'Valor nulo presente nas colunas utilizadas para agrupamento: {agg_cols}'
-        # Mosaico.register_log(df_temp, processing)
-        # self.append2discarded(df_temp)
-
-        df_sub["Multiplicidade"] = (
-            df.groupby(agg_cols, dropna=True, sort=False, observed=True).size().values
-        )
+        grouped = df.groupby(agg_cols, dropna=True, sort=False, observed=True)
+        df_sub["Multiplicidade"] = grouped.size().values
         df_sub["#Estação"] = (
-            df.groupby(agg_cols, dropna=True, sort=False, observed=True)["Estação"]
-            .apply(lambda x: list(x))
-            .values
+            grouped["Estação"].apply(lambda x: list(x)).values.astype("string")
         )
-        df_sub["#Estação"] = df_sub["#Estação"].astype("string")
-
         row_filter = df_sub["Multiplicidade"] > 1
         processing = f"{log}: {agg_cols}"
         return Mosaico.register_log(
