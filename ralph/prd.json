@@ -205,8 +205,8 @@
       "verify": [
         ".venv/bin/python -m unittest tests.test_full_mode"
       ],
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed: Estacoes.save preserves Base output behavior and writes estacoes_full.parquet only when full mode has df_full. Focused save tests pass."
     },
     {
       "id": "FULL-12",

@@ -12,6 +12,7 @@ import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 from fastcore.foundation import L
 from fastcore.parallel import parallel
+from fastcore.xtras import Path
 
 from .constants import COLS_SRD
 from .datasources.aeronautica import Aero
@@ -134,6 +135,13 @@ class Estacoes(Base):
         self.df_full = df_full.loc[
             :, [column for column in self.columns if column != "Multiplicidade"]
         ]
+
+    def save(self, folder: str | Path | None = None):
+        if folder is None:
+            folder = self.folder
+        super().save(folder)
+        if self.full and hasattr(self, "df_full"):
+            self._save(self.df_full, folder, "estacoes_full")
 
     @staticmethod
     def _simplify_sources(df):

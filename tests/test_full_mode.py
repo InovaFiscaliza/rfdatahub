@@ -341,5 +341,41 @@ class StationFullUpdateTests(unittest.TestCase):
         self.assertNotIn("Multiplicidade", stations.df_full.columns)
 
 
+class StationSaveTests(unittest.TestCase):
+    def test_save_persists_full_output_only_when_enabled(self):
+        grouped = pd.DataFrame({"Multiplicidade": [2], "Log": [0]})
+        full = pd.DataFrame({"Log": ["[]"]}, dtype="string")
+
+        with tempfile.TemporaryDirectory() as folder:
+            stations = Estacoes(read_cache=True, full=True)
+            stations.folder = Path(folder)
+            stations.df = grouped
+            stations.df_full = full
+            stations.save()
+
+            grouped_saved = pd.read_parquet(Path(folder) / "estacoes.parquet")
+            full_saved = pd.read_parquet(Path(folder) / "estacoes_full.parquet")
+            self.assertIn("Multiplicidade", grouped_saved.columns)
+            self.assertNotIn("Multiplicidade", full_saved.columns)
+            self.assertEqual(full_saved["Log"].dtype.name, "category")
+            self.assertEqual(json.loads(full_saved.loc[0, "Log"]), [])
+            self.assertTrue(
+                (Path(folder) / "estacoes_discarded.parquet").is_file()
+            )
+            self.assertFalse((Path(folder) / "log.parquet").exists())
+
+        with tempfile.TemporaryDirectory() as folder:
+            stations = Estacoes(read_cache=True, full=False)
+            stations.folder = Path(folder)
+            stations.df = grouped
+            stations.save()
+
+            self.assertTrue((Path(folder) / "estacoes.parquet").is_file())
+            self.assertTrue(
+                (Path(folder) / "estacoes_discarded.parquet").is_file()
+            )
+            self.assertFalse((Path(folder) / "estacoes_full.parquet").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

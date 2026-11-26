@@ -79,3 +79,6 @@
   `df_full` with inline logs and no Multiplicidade. Added an offline `full` harness command.
   `full --sample 50000` passed, including grouped baseline equality and full output invariants;
   targeted tests passed. Full discovery still has the two known unrelated failures.
+- FULL-11 completed: `Estacoes.save()` now persists `estacoes_full.parquet` when full mode has
+  `df_full`, while preserving the grouped/discarded outputs and keeping inline logs as JSON
+  strings. Focused tests confirm full and grouped save behavior.
