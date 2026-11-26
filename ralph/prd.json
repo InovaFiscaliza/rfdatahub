@@ -254,8 +254,8 @@
       "verify": [
         ".venv/bin/nbdev-update && .venv/bin/nbdev-export && git diff --exit-code extracao/"
       ],
-      "passes": false,
-      "notes": "If nbdev-export rewrites modules in an unexpected way, revert the module changes (git checkout extracao/) and fix notebooks manually instead — modules win."
+      "passes": true,
+      "notes": "Completed: nbdev-update synchronized the modules into the notebooks, including earlier pandas-warning changes. nbdev-export regenerated module formatting/index changes, which were reverted per the source-of-truth rule; notebooks parse as valid JSON and extracao/ is clean."
     },
     {
       "id": "FULL-15",

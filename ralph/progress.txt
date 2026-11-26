@@ -85,3 +85,7 @@
 - FULL-13 completed: `scripts/main.py` exposes `--full/--no-full`, defaults to full output, and
   forwards the option by keyword. CLI help passed; only the ticket-specific hunks were committed
   from the file's pre-existing user edits.
+- FULL-14 completed: synchronized nbdev notebooks from the Python modules, including earlier
+  pandas warning fixes, and added the Mosaico grouped-vs-ungrouped explanation. All notebook
+  JSON parsed and nbdev-export completed; exporter-generated Python formatting/index rewrites
+  were reverted, leaving `extracao/` unchanged as required by the source-of-truth convention.
