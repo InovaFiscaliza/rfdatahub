@@ -43,3 +43,6 @@
   equality. Mismatches report shapes, columns, and the first differing rows. Added passing
   in-memory equal/mismatch tests. Verified `compare --sample 50000` and
   `.venv/bin/python -m unittest tests.test_full_pipeline_check`.
+- FULL-03 completed: extracted station normalization, sorting, and numeric bandwidth conversion
+  into `Mosaico._prepare_rows`; `aggregate` delegates to it. Sample comparison matches all
+  baseline files. Full unittest discovery reports only the two known baseline failures.

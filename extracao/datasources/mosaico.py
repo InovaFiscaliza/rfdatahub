@@ -104,13 +104,7 @@ class Mosaico(Base, GetAttr):
         """Exclude and log the duplicated rows
         Columns considered are defined by agg_cols
         """
-        df["Estação"] = (
-            df["Estação"].astype("string").fillna("-1").astype("int", errors="ignore")
-        )
-        df = df.sort_values("Estação", ignore_index=True)
-        df["Largura_Emissão(kHz)"] = pd.to_numeric(
-            df["Largura_Emissão(kHz)"], errors="coerce"
-        )
+        df = Mosaico._prepare_rows(df)
         duplicated = df.duplicated(subset=agg_cols, keep="first")
         # I didn't find a better way to do this, the LLMs suggestions were wrong!
         df_sub = df[~duplicated].dropna(subset=agg_cols).reset_index(drop=True)
@@ -123,3 +117,15 @@ class Mosaico(Base, GetAttr):
         return Mosaico.register_log(
             df=df_sub, processing=processing, column="#Estação", row_filter=row_filter
         )
+
+    @staticmethod
+    def _prepare_rows(df: pd.DataFrame) -> pd.DataFrame:
+        """Normalize and sort rows before aggregation."""
+        df["Estação"] = (
+            df["Estação"].astype("string").fillna("-1").astype("int", errors="ignore")
+        )
+        df = df.sort_values("Estação", ignore_index=True)
+        df["Largura_Emissão(kHz)"] = pd.to_numeric(
+            df["Largura_Emissão(kHz)"], errors="coerce"
+        )
+        return df

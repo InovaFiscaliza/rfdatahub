@@ -64,7 +64,7 @@
         ".venv/bin/python scripts/full_pipeline_check.py compare --sample 50000",
         ".venv/bin/python -m unittest discover -s tests"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
