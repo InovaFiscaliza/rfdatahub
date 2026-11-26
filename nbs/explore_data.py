@@ -2538,6 +2538,211 @@ def _(
 
 @app.cell
 def _():
+    mo.md(r"""
+    ## 6. Explorador Geral de Estações (Todos os Pontos)
+
+    Mapa de **toda a base**, não apenas dos resíduos problemáticos. Como a base tem mais de um milhão de registros, filtre por
+    **Serviço**, **faixa de Frequência**, **UF**, **Município declarado** e/ou **busca livre** (aplicada a *todas* as colunas;
+    múltiplos termos separados por espaço devem todos aparecer, em qualquer coluna). Cada ponto é colorido pelo seu diagnóstico
+    da Seção 5 — `00_OK_Consistente` representa as estações normais.
+
+    Nenhum ponto é descartado: o resultado filtrado é dividido em **páginas** de *Pontos por página* registros, ordenadas por
+    UF/Município, e o seletor **Página** percorre todo o conjunto (mudar qualquer filtro volta à página 1).
+    """)
+    return
+
+
+@app.function(hide_code=True)
+def any_column_search_mask(frame: pd.DataFrame, query: str) -> np.ndarray:
+    """Case-insensitive search over every column; each whitespace-separated term must match some column."""
+    mask = np.ones(len(frame), dtype=bool)
+    for term in query.lower().split():
+        term_mask = np.zeros(len(frame), dtype=bool)
+        for col in frame.columns:
+            values = frame[col]
+            if isinstance(values.dtype, pd.CategoricalDtype):
+                # Match on the (few) categories, then map back through the codes
+                hits = values.cat.categories.astype(str).str.lower().str.contains(term, regex=False)
+                codes = values.cat.codes.to_numpy()
+                term_mask |= (codes >= 0) & np.asarray(hits)[np.clip(codes, 0, None)]
+            else:
+                term_mask |= values.astype(str).str.lower().str.contains(term, regex=False).to_numpy()
+        mask &= term_mask
+    return mask
+
+
+@app.cell(hide_code=True)
+def _(ALL_OPTION, SERVICO_NOMES, estacoes):
+    _serv_counts = estacoes["Serviço"].astype(str).value_counts()
+    all_serv_select = mo.ui.multiselect(
+        options={
+            f"{SERVICO_NOMES.get(code, code)} [{n:,}]": code for code, n in _serv_counts.items()
+        },
+        value=[],
+        label="Serviço (vazio = todos):",
+    )
+    all_freq_min = mo.ui.number(start=0, stop=100000, step=0.001, value=0, label="Freq. mín. (MHz):")
+    all_freq_max = mo.ui.number(start=0, stop=100000, step=0.001, value=100000, label="Freq. máx. (MHz):")
+    all_uf_select = mo.ui.dropdown(
+        options=[ALL_OPTION] + sorted(estacoes["UF"].astype(str).unique().tolist()),
+        value=ALL_OPTION,
+        label="UF:",
+    )
+    all_text_search = mo.ui.text(
+        value="",
+        placeholder="Ex: CLARO 3500, 50450314308, PETROBRAS...",
+        label="Busca livre (todas as colunas):",
+        full_width=True,
+    )
+    all_max_points = mo.ui.slider(start=100, stop=20000, step=100, value=3000, label="Pontos por página:")
+    all_cluster_toggle = mo.ui.checkbox(value=True, label="Agrupar marcadores (MarkerCluster)")
+    return (
+        all_cluster_toggle,
+        all_freq_max,
+        all_freq_min,
+        all_max_points,
+        all_serv_select,
+        all_text_search,
+        all_uf_select,
+    )
+
+
+@app.cell(hide_code=True)
+def _(ALL_OPTION, all_uf_select, estacoes):
+    _pairs = estacoes[["Município", "UF"]].astype(str).drop_duplicates()
+    if all_uf_select.value != ALL_OPTION:
+        _pairs = _pairs[_pairs["UF"] == all_uf_select.value]
+    _pairs = _pairs.sort_values(["Município", "UF"])
+    all_mun_select = mo.ui.dropdown(
+        options={ALL_OPTION: None}
+        | {f"{m} / {u}": (m, u) for m, u in zip(_pairs["Município"], _pairs["UF"])},
+        value=ALL_OPTION,
+        searchable=True,
+        label="Município declarado:",
+    )
+    return (all_mun_select,)
+
+
+@app.cell
+def _(
+    ALL_OPTION,
+    all_freq_max,
+    all_freq_min,
+    all_mun_select,
+    all_serv_select,
+    all_text_search,
+    all_uf_select,
+    estacoes,
+    freq_mhz,
+    lat_num,
+    lon_num,
+):
+    _mask = valid_wgs84_mask(lat_num, lon_num)
+    if all_serv_select.value:
+        _mask &= np.isin(estacoes["Serviço"].astype(str).to_numpy(), all_serv_select.value)
+    _fmin, _fmax = all_freq_min.value, all_freq_max.value
+    if _fmin > 0 or _fmax < 100000:
+        _mask &= (freq_mhz >= _fmin) & (freq_mhz <= _fmax)
+    _mask &= selection_mask(estacoes["UF"], all_uf_select.value, ALL_OPTION)
+    if all_mun_select.value is not None:
+        _mun, _uf = all_mun_select.value
+        _mask &= (estacoes["Município"].astype(str) == _mun).to_numpy()
+        _mask &= (estacoes["UF"].astype(str) == _uf).to_numpy()
+    if all_text_search.value.strip():
+        _mask &= any_column_search_mask(estacoes, all_text_search.value)
+
+    _idx = np.flatnonzero(_mask)
+    # Deterministic UF/Município order so every filtered point lands on exactly one, geographically coherent page
+    _order = np.lexsort(
+        (
+            _idx,
+            estacoes["Município"].astype(str).to_numpy()[_idx],
+            estacoes["UF"].astype(str).to_numpy()[_idx],
+        )
+    )
+    all_matched_idx = _idx[_order]
+
+    return (all_matched_idx,)
+
+
+@app.cell(hide_code=True)
+def _(all_matched_idx, all_max_points):
+    all_n_pages = max(1, -(-len(all_matched_idx) // int(all_max_points.value)))
+    all_page = mo.ui.number(
+        start=1, stop=all_n_pages, step=1, value=1, label=f"Página (de {all_n_pages:,}):"
+    )
+
+    return all_n_pages, all_page
+
+
+@app.cell(hide_code=True)
+def _(
+    ISSUE_META,
+    all_cluster_toggle,
+    all_freq_max,
+    all_freq_min,
+    all_matched_idx,
+    all_max_points,
+    all_mun_select,
+    all_n_pages,
+    all_page,
+    all_serv_select,
+    all_text_search,
+    all_uf_select,
+    dirty_eng_detail,
+    dist_ibge_km,
+    estacoes,
+    ibge_mun_name_arr,
+    lat_num,
+    log_templates,
+    lon_num,
+    poly_cd_arr,
+    poly_nm_arr,
+    poly_uf_arr,
+    primary_issue,
+):
+    _size = int(all_max_points.value)
+    _page = min(max(int(all_page.value or 1), 1), all_n_pages)
+    _start = (_page - 1) * _size
+    _page_idx = np.sort(all_matched_idx[_start : _start + _size])
+    _total_matched = len(all_matched_idx)
+
+    _points = build_issue_points(
+        estacoes, _page_idx, lat_num, lon_num, primary_issue, poly_cd_arr, poly_nm_arr,
+        poly_uf_arr, ibge_mun_name_arr, dist_ibge_km, dirty_eng_detail,
+    )
+    _codes = set(_points["Diagnostico"])
+    _fmap = build_issue_map(
+        _points, ISSUE_META, _codes, all_cluster_toggle.value,
+        dict(zip(log_templates["Log"], log_templates["Resumo_Log"])),
+    )
+    _n_ok = int((_points["Diagnostico"] == "00_OK_Consistente").sum())
+    _ufs = estacoes["UF"].astype(str).to_numpy()[_page_idx]
+    _uf_span = f" (UF {_ufs.min()}–{_ufs.max()})" if len(_ufs) else ""
+
+    mo.vstack(
+        [
+            mo.hstack([all_serv_select, all_uf_select, all_mun_select], widths=[2, 1, 1]),
+            mo.hstack([all_freq_min, all_freq_max, all_max_points, all_page, all_cluster_toggle]),
+            all_text_search,
+            mo.callout(
+                mo.md(
+                    f"**{_total_matched:,}** registros atendem aos filtros, em **{all_n_pages:,}** página(s) ordenadas por UF/Município. "
+                    f"Página **{_page:,}**: registros **{min(_start + 1, _total_matched):,}–{_start + len(_page_idx):,}**{_uf_span} — "
+                    f"{_n_ok:,} consistentes e {len(_points) - _n_ok:,} com algum diagnóstico. "
+                    f"Nenhum ponto é omitido: avance as páginas (ou aumente *Pontos por página*) para percorrer todo o resultado."
+                ),
+                kind="info",
+            ),
+            mo.ui.tabs(
+                {
+                    "🗺️ Mapa (página atual)": folium_iframe(_fmap, "620px"),
+                    "🧾 Tabela (página atual)": mo.ui.table(issue_points_table(_points), pagination=True, page_size=15),
+                }
+            ),
+        ]
+    )
+
     return
 
 
