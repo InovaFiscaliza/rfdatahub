@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from extracao.constants import AGG_LICENCIAMENTO
+from extracao.constants import AGG_LICENCIAMENTO, COLS_STEL
 from extracao.datasources.mosaico import Mosaico
 from extracao.datasources.smp import Smp
 from extracao.datasources.telecom import Telecom
@@ -110,6 +110,58 @@ class FullOutputStemTests(unittest.TestCase):
                 self.assertTrue(
                     (Path(folder) / f"{source.stem}_discarded.parquet").is_file()
                 )
+
+
+class TelecomFullFormatTests(unittest.TestCase):
+    @staticmethod
+    def make_raw_rows():
+        base = {
+            "NumAto": "123",
+            "NumFistel": "10",
+            "NumServico": "011",
+            "NomeEntidade": "Test Entity",
+            "SiglaUf": "SP",
+            "CodTipoClasseEstacao": "FB",
+            "NomeMunicipio": "São Paulo",
+            "CodMunicipio": "3550308",
+            "DataValidade": "2030-01-01",
+            "FreqTxMHz": "100",
+            "formId": "1",
+            "Tecnologia": "LTE",
+            "Latitude": "-23.5",
+            "Longitude": "-46.6",
+            "DesignacaoEmissao": "200KG7W",
+            "state": "LIC-LIC-01",
+            "Log": "[]",
+        }
+        return pd.DataFrame(
+            [
+                dict(base, NumEstacao="2"),
+                dict(base, NumEstacao="1"),
+            ],
+            dtype="string",
+        )
+
+    def test_full_format_preserves_duplicates_and_saves_without_multiplicity(self):
+        source = Telecom(read_cache=True, full=True)
+        result = source._format(self.make_raw_rows())
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result["Estação"].tolist(), [1, 2])
+        self.assertNotIn("Multiplicidade", result.columns)
+        self.assertEqual(
+            result.columns.tolist(),
+            [column for column in COLS_STEL if column != "Multiplicidade"],
+        )
+
+        with tempfile.TemporaryDirectory() as folder:
+            source.folder = Path(folder)
+            source.df = result
+            source.save()
+            saved = pd.read_parquet(Path(folder) / "telecom_full.parquet")
+
+        self.assertEqual(len(saved), 2)
+        self.assertNotIn("Multiplicidade", saved.columns)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ import pandas as pd
 import typer
 from fastcore.foundation import L
 
-from extracao.constants import IBGE_MUNICIPIOS, IBGE_POLIGONO
+from extracao.constants import AGG_LICENCIAMENTO, IBGE_MUNICIPIOS, IBGE_POLIGONO
 from extracao.datasources.aeronautica import Aero
 from extracao.datasources.sitarweb import Radcom, Stel
 from extracao.datasources.smp import Smp
@@ -97,6 +97,43 @@ def _run_grouped(output_dir: Path, sample: int) -> dict[str, pd.DataFrame]:
         "estacoes": stations_df,
         "log": pd.read_parquet(output_dir / "log.parquet"),
     }
+
+
+@app.command("full-invariants")
+def full_invariants(
+    sample: int = typer.Option(0, min=0, help="Process only the first N telecom/SMP raw rows."),
+) -> None:
+    """Check that Telecom full mode preserves all eligible ungrouped rows."""
+    grouped_source = Telecom(read_cache=True)
+    grouped_source.folder = CACHE_DIR
+    _sample_raw_cache(grouped_source, sample)
+    grouped_source.update()
+
+    full_source = Telecom(read_cache=True, full=True)
+    full_source.folder = CACHE_DIR
+    _sample_raw_cache(full_source, sample)
+    full_source.update()
+
+    grouped = grouped_source.df
+    full = full_source.df
+    grouped_multiplicity = pd.to_numeric(
+        grouped["Multiplicidade"], errors="raise"
+    ).sum()
+    full_eligible_rows = full[AGG_LICENCIAMENTO].notna().all(axis=1).sum()
+    if len(full) < len(grouped):
+        raise AssertionError(
+            f"Telecom full rows ({len(full)}) are fewer than grouped rows "
+            f"({len(grouped)})."
+        )
+    if grouped_multiplicity != full_eligible_rows:
+        raise AssertionError(
+            f"Grouped Telecom multiplicity sum ({grouped_multiplicity}) does not "
+            f"equal eligible full rows ({full_eligible_rows})."
+        )
+    print(
+        f"Telecom invariants hold: grouped={len(grouped):,}, "
+        f"full={len(full):,}, eligible={full_eligible_rows:,}"
+    )
 
 
 def assert_frames_equal(

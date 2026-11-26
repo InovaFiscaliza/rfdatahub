@@ -54,3 +54,7 @@
   and saves; Telecom/Smp use a `_full` stem when requested while raw-cache loading remains
   `{stem}_raw`. Tests cover shared raw reads, full output/discarded paths, and unchanged grouped
   save names. Focused tests and grouped baseline comparison passed.
+- FULL-06 completed: Telecom full mode now uses `ungrouped` and omits Multiplicidade from its
+  result; grouped mode is unchanged. Added synthetic raw-format/save coverage and a
+  `full-invariants` harness command. Sample check: grouped 11,924 rows, full 50,000, all 50,000
+  eligible. Focused tests and grouped baseline comparison passed.

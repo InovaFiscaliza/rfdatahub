@@ -88,6 +88,13 @@ class Telecom(Mosaico):
         """Clean the merged dataframe with the data from the MOSAICO page"""
         df = df.rename(columns=self.cols_mapping)
         df = self.split_designacao(df)
-        df_sub = self.aggregate(df, AGG_LICENCIAMENTO, "MOSAICO-TELECOM: Agrupamento")
+        if self.full:
+            df_sub = self.ungrouped(df)
+            columns = [column for column in self.columns if column != "Multiplicidade"]
+        else:
+            df_sub = self.aggregate(
+                df, AGG_LICENCIAMENTO, "MOSAICO-TELECOM: Agrupamento"
+            )
+            columns = self.columns
         df_sub["Fonte"] = "MOSAICO-LICENCIAMENTO"
-        return df_sub.loc[:, self.columns]
+        return df_sub.loc[:, columns]

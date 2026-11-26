@@ -119,7 +119,7 @@
         ".venv/bin/python scripts/full_pipeline_check.py full-invariants --sample 50000",
         ".venv/bin/python scripts/full_pipeline_check.py compare --sample 50000"
       ],
-      "passes": false,
+      "passes": true,
       "notes": "Note: Telecom.extraction sets df['Log']='' after _extract (pre-existing, register_log normalises it). Leave as is."
     },
     {
