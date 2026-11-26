@@ -102,8 +102,8 @@ class Mosaico(Base, GetAttr):
         df["Classe_Emissão"] = df["Classe_Emissão"].astype("string")
         return df.drop(["Designação_Emissão", "Temp"], axis=1)
 
+    @staticmethod
     def aggregate(
-        self,
         df: pd.DataFrame,  # DataFrame com os dados de Estações
         agg_cols: list,  # Lista de colunas a serem agrupadas
         log: str,  # Mensagem de log a ser registrada
