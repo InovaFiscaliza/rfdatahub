@@ -12,7 +12,6 @@ import shapely
 from dotenv import find_dotenv, load_dotenv
 from fastcore.foundation import L
 from fastcore.xtras import Path
-from rich import print as pp
 from tqdm.auto import tqdm
 
 from extracao.constants import IBGE_MUNICIPIOS, IBGE_POLIGONO, MALHA_IBGE
@@ -37,8 +36,8 @@ class Geography:
         self._initialize()
 
     def _initialize(self):
-        self.log_empty_coords()
-        self.log_empty_code()
+        # self.log_empty_coords()
+        # self.log_empty_code()
         self.drop_rows_without_location_info()
         self.validate_coordinates_as_number()
         self.validate_codigo_municipio_as_number()
@@ -87,17 +86,17 @@ class Geography:
             "no_location_info": no_location_info,
         }
 
-    def log_empty_coords(self):
-        """Log the rows with empty coordinates"""
-        rows = self.log["empty_coords"]
-        processing = "Coordenadas nulas."
-        Base.register_log(self.df, processing, row_filter=rows)
+    # def log_empty_coords(self):
+    #     """Log the rows with empty coordinates"""
+    #     rows = self.log["empty_coords"]
+    #     processing = "Coordenadas nulas."
+    #     Base.register_log(self.df, processing, row_filter=rows)
 
-    def log_empty_code(self):
-        """Log the rows with empty city code"""
-        rows = self.log["empty_code"]
-        processing = "Código do Município nulo."
-        Base.register_log(self.df, processing, row_filter=rows)
+    # def log_empty_code(self):
+    #     """Log the rows with empty city code"""
+    #     rows = self.log["empty_code"]
+    #     processing = "Código do Município nulo."
+    #     Base.register_log(self.df, processing, row_filter=rows)
 
     def drop_rows_without_location_info(self) -> None:
         rows = self.log["no_location_info"]
@@ -369,19 +368,6 @@ class Geography:
         self.fix_inverted_or_swapped_coordinates(regions)
         self.fix_decimal_shift_coordinates(regions)
 
-        coords_inside_br = (
-            self.df["CD_MUN"].notna()
-            & self.df["LAT"].notna()
-            & self.df["LON"].notna()
-            & self.df["SIGLA_UF"].notna()
-        )
-        self.log.update({"coords_inside_br": coords_inside_br})
-        Base.register_log(
-            self.df,
-            "Fora do Território Continental BR.",
-            row_filter=~coords_inside_br,
-        )
-
     def fix_inverted_or_swapped_coordinates(self, regions: gpd.GeoDataFrame) -> None:
         """Recover coordinates outside Brazilian land polygons caused by sign inversion or Lat/Lon swap.
         Only applies a candidate transform when the resulting point intersects an IBGE polygon matching
@@ -595,6 +581,20 @@ class Geography:
             rows,
             log,
             float_cols=True,
+        )
+        coords_inside_br = (
+            self.df["CD_MUN"].notna()
+            & self.df["LAT"].notna()
+            & self.df["LON"].notna()
+            & self.df["SIGLA_UF"].notna()
+        )
+        valid_outside_br = ~coords_inside_br
+        valid_outside_br &= ~rows
+        self.log.update({"coords_outside_br": valid_outside_br})
+        Base.register_log(
+            self.df,
+            "Fora do Território Continental BR.",
+            row_filter=valid_outside_br,
         )
 
     def fill_missing_city_info(self):

@@ -31,7 +31,6 @@ import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 from fastcore.utils import listify
 from geopy.distance import geodesic
-from rich import print as pp
 from tqdm.auto import tqdm
 
 from extracao.constants import (
@@ -333,10 +332,10 @@ def merge_dicts(json_log: str):
 
     for log_dict in merged_dict.values():
         column = log_dict.get("Coluna")
-        if column == "#Estação" and (original := log_dict.get("Valor")):
+        if column == "#Estação" and (original := log_dict.get("Original")):
             value = literal_eval(original)
             if isinstance(value, list):
-                log_dict["Valor"] = str(sorted(set(value)))
+                log_dict["Original"] = str(sorted(set(value)))
         output_list.append(log_dict)
 
     return json.dumps(output_list, ensure_ascii=False)

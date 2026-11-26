@@ -240,7 +240,7 @@ class Smp(Mosaico):
         """Formats, cleans, groups, adds and standardizes the queried data from the database"""
         df = df.rename(columns=self.cols_mapping)
         df = self.split_designacao(df)
-        df = self.exclude_duplicated(df, AGG_SMP)
+        df = self.aggregate(df, AGG_SMP, "MOSAICO-SMP: Agrupamento")
         df = self.validate_channels(df)
         df = self.generate_uplink(df)
         df = self.substitute_coordinates(df)

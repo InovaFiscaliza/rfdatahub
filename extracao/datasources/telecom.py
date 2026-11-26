@@ -79,23 +79,7 @@ class Telecom(Mosaico):
         """Clean the merged dataframe with the data from the MOSAICO page"""
         df = df.rename(columns=self.cols_mapping)
         df = self.split_designacao(df)
-        duplicated = df.duplicated(subset=AGG_LICENCIAMENTO, keep="first")
-        df_sub = df[~duplicated].dropna(subset=AGG_LICENCIAMENTO).reset_index(drop=True)
-        # discarded = df[duplicated].reset_index(drop=True)
-        # log = f"""[("Colunas", {AGG_LICENCIAMENTO}),
-        # ("Log", "Registro agrupado e descartado do arquivo final")]"""
-        # self.append2discarded(self.register_log(discarded, log))
-        # del discarded
-        # gc.collect()
-        # .count() drop the NaN from the subset, not keeping them
-        df_sub["Multiplicidade"] = (
-            df.groupby(AGG_LICENCIAMENTO, dropna=True, sort=False, observed=True)
-            .size()
-            .values
-        )
-        log = f"MOSAICO-TELECOM: Agrupamento: {AGG_LICENCIAMENTO}"
-        df_sub = Mosaico.register_log(
-            df=df_sub, processing=log, row_filter=df_sub.Multiplicidade > 1
-        )
+        # Exclude duplicated rows based on AGG_LICENCIAMENTO columns and log
+        df_sub = self.aggregate(df, AGG_LICENCIAMENTO, "MOSAICO-TELECOM: Agrupamento")
         df_sub["Fonte"] = "MOSAICO-LICENCIAMENTO"
         return df_sub.loc[:, self.columns]

@@ -102,10 +102,11 @@ class Mosaico(Base, GetAttr):
         df["Classe_Emissão"] = df["Classe_Emissão"].astype("string")
         return df.drop(["Designação_Emissão", "Temp"], axis=1)
 
-    def exclude_duplicated(
+    def aggregate(
         self,
         df: pd.DataFrame,  # DataFrame com os dados de Estações
         agg_cols: list,  # Lista de colunas a serem agrupadas
+        log: str,  # Mensagem de log a ser registrada
     ) -> pd.DataFrame:  # DataFrame com os dados duplicados excluídos
         """Exclude and log the duplicated rows
         Columns considered are defined by agg_cols
@@ -147,7 +148,7 @@ class Mosaico(Base, GetAttr):
         df_sub["#Estação"] = df_sub["#Estação"].astype("string")
 
         row_filter = df_sub["Multiplicidade"] > 1
-        processing = f"MOSAICO: Agrupamento: {agg_cols}"
+        processing = f"{log}: {agg_cols}"
         return Mosaico.register_log(
             df=df_sub, processing=processing, column="#Estação", row_filter=row_filter
         )

@@ -485,7 +485,10 @@ def parse_log_templates(
             has_dq = has_dq or is_dq
             tags.append(tag)
             # A step may touch several columns at once: Coluna/Valor are then parallel lists
-            cols, vals = it.get("Coluna", ""), it.get("Valor", it.get("Original", ""))
+            cols, vals = (
+                it.get("Coluna", ""),
+                it.get("Original", it.get("Original", "")),
+            )
             if not isinstance(cols, list):
                 cols, vals = [cols], [vals]
             detail = ", ".join(f"{c}: '{v}'" for c, v in zip(cols, vals) if c)
@@ -501,7 +504,7 @@ def parse_log_templates(
                         "Alerta_Qualidade": is_dq,
                         "Processamento": proc.replace("\n", " "),
                         "Coluna": col,
-                        "Valor": val,
+                        "Original": val,
                         "Estacoes_Afetadas": n_rows,
                     }
                 )
@@ -928,7 +931,7 @@ def log_original_values(
     ev = log_events[log_events["Tag"] == tag]
     if coluna is not None:
         ev = ev[ev["Coluna"] == coluna]
-    return ev.drop_duplicates("Log").set_index("Log")["Valor"]
+    return ev.drop_duplicates("Log").set_index("Log")["Original"]
 
 
 @app.function
@@ -1033,7 +1036,7 @@ def _(
     _sel_lid = min(max(0, int(log_id_selector.value)), max(0, len(log_templates) - 1))
     _sel_tmpl = log_templates.loc[log_templates["Log"] == _sel_lid].iloc[0]
     _sel_steps = log_events[log_events["Log"] == _sel_lid][
-        ["Passo", "Tag", "Coluna", "Valor", "Processamento"]
+        ["Passo", "Tag", "Coluna", "Original", "Processamento"]
     ]
     _linked_stations = (
         estacoes[estacoes["Log"] == _sel_lid][
@@ -2562,11 +2565,20 @@ def any_column_search_mask(frame: pd.DataFrame, query: str) -> np.ndarray:
             values = frame[col]
             if isinstance(values.dtype, pd.CategoricalDtype):
                 # Match on the (few) categories, then map back through the codes
-                hits = values.cat.categories.astype(str).str.lower().str.contains(term, regex=False)
+                hits = (
+                    values.cat.categories.astype(str)
+                    .str.lower()
+                    .str.contains(term, regex=False)
+                )
                 codes = values.cat.codes.to_numpy()
                 term_mask |= (codes >= 0) & np.asarray(hits)[np.clip(codes, 0, None)]
             else:
-                term_mask |= values.astype(str).str.lower().str.contains(term, regex=False).to_numpy()
+                term_mask |= (
+                    values.astype(str)
+                    .str.lower()
+                    .str.contains(term, regex=False)
+                    .to_numpy()
+                )
         mask &= term_mask
     return mask
 
@@ -2576,13 +2588,18 @@ def _(ALL_OPTION, SERVICO_NOMES, estacoes):
     _serv_counts = estacoes["Serviço"].astype(str).value_counts()
     all_serv_select = mo.ui.multiselect(
         options={
-            f"{SERVICO_NOMES.get(code, code)} [{n:,}]": code for code, n in _serv_counts.items()
+            f"{SERVICO_NOMES.get(code, code)} [{n:,}]": code
+            for code, n in _serv_counts.items()
         },
         value=[],
         label="Serviço (vazio = todos):",
     )
-    all_freq_min = mo.ui.number(start=0, stop=100000, step=0.001, value=0, label="Freq. mín. (MHz):")
-    all_freq_max = mo.ui.number(start=0, stop=100000, step=0.001, value=100000, label="Freq. máx. (MHz):")
+    all_freq_min = mo.ui.number(
+        start=0, stop=100000, step=0.001, value=0, label="Freq. mín. (MHz):"
+    )
+    all_freq_max = mo.ui.number(
+        start=0, stop=100000, step=0.001, value=100000, label="Freq. máx. (MHz):"
+    )
     all_uf_select = mo.ui.dropdown(
         options=[ALL_OPTION] + sorted(estacoes["UF"].astype(str).unique().tolist()),
         value=ALL_OPTION,
@@ -2594,8 +2611,12 @@ def _(ALL_OPTION, SERVICO_NOMES, estacoes):
         label="Busca livre (todas as colunas):",
         full_width=True,
     )
-    all_max_points = mo.ui.slider(start=100, stop=20000, step=100, value=3000, label="Pontos por página:")
-    all_cluster_toggle = mo.ui.checkbox(value=True, label="Agrupar marcadores (MarkerCluster)")
+    all_max_points = mo.ui.slider(
+        start=100, stop=20000, step=100, value=3000, label="Pontos por página:"
+    )
+    all_cluster_toggle = mo.ui.checkbox(
+        value=True, label="Agrupar marcadores (MarkerCluster)"
+    )
     return (
         all_cluster_toggle,
         all_freq_max,
@@ -2639,7 +2660,9 @@ def _(
 ):
     _mask = valid_wgs84_mask(lat_num, lon_num)
     if all_serv_select.value:
-        _mask &= np.isin(estacoes["Serviço"].astype(str).to_numpy(), all_serv_select.value)
+        _mask &= np.isin(
+            estacoes["Serviço"].astype(str).to_numpy(), all_serv_select.value
+        )
     _fmin, _fmax = all_freq_min.value, all_freq_max.value
     if _fmin > 0 or _fmax < 100000:
         _mask &= (freq_mhz >= _fmin) & (freq_mhz <= _fmax)
@@ -2669,7 +2692,11 @@ def _(
 def _(all_matched_idx, all_max_points):
     all_n_pages = max(1, -(-len(all_matched_idx) // int(all_max_points.value)))
     all_page = mo.ui.number(
-        start=1, stop=all_n_pages, step=1, value=1, label=f"Página (de {all_n_pages:,}):"
+        start=1,
+        stop=all_n_pages,
+        step=1,
+        value=1,
+        label=f"Página (de {all_n_pages:,}):",
     )
 
     return all_n_pages, all_page
@@ -2708,12 +2735,24 @@ def _(
     _total_matched = len(all_matched_idx)
 
     _points = build_issue_points(
-        estacoes, _page_idx, lat_num, lon_num, primary_issue, poly_cd_arr, poly_nm_arr,
-        poly_uf_arr, ibge_mun_name_arr, dist_ibge_km, dirty_eng_detail,
+        estacoes,
+        _page_idx,
+        lat_num,
+        lon_num,
+        primary_issue,
+        poly_cd_arr,
+        poly_nm_arr,
+        poly_uf_arr,
+        ibge_mun_name_arr,
+        dist_ibge_km,
+        dirty_eng_detail,
     )
     _codes = set(_points["Diagnostico"])
     _fmap = build_issue_map(
-        _points, ISSUE_META, _codes, all_cluster_toggle.value,
+        _points,
+        ISSUE_META,
+        _codes,
+        all_cluster_toggle.value,
         dict(zip(log_templates["Log"], log_templates["Resumo_Log"])),
     )
     _n_ok = int((_points["Diagnostico"] == "00_OK_Consistente").sum())
@@ -2722,8 +2761,18 @@ def _(
 
     mo.vstack(
         [
-            mo.hstack([all_serv_select, all_uf_select, all_mun_select], widths=[2, 1, 1]),
-            mo.hstack([all_freq_min, all_freq_max, all_max_points, all_page, all_cluster_toggle]),
+            mo.hstack(
+                [all_serv_select, all_uf_select, all_mun_select], widths=[2, 1, 1]
+            ),
+            mo.hstack(
+                [
+                    all_freq_min,
+                    all_freq_max,
+                    all_max_points,
+                    all_page,
+                    all_cluster_toggle,
+                ]
+            ),
             all_text_search,
             mo.callout(
                 mo.md(
@@ -2737,7 +2786,9 @@ def _(
             mo.ui.tabs(
                 {
                     "🗺️ Mapa (página atual)": folium_iframe(_fmap, "620px"),
-                    "🧾 Tabela (página atual)": mo.ui.table(issue_points_table(_points), pagination=True, page_size=15),
+                    "🧾 Tabela (página atual)": mo.ui.table(
+                        issue_points_table(_points), pagination=True, page_size=15
+                    ),
                 }
             ),
         ]
