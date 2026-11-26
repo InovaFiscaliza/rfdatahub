@@ -45,12 +45,21 @@ def get_db(
 	parallel: bool = True,  # Caso verdadeiro efetua as requisições de forma paralela em cada fonte de dados
 	read_cache: bool = False,  # Caso verdadeiro lê os dados já existentes, do contrário efetua a atualização dos dados
 	reprocess_sources: bool = True,
+	full: bool = True,
 ) -> 'pd.DataFrame':  # Retorna o DataFrame com as bases da Anatel e da Aeronáutica
 	"""Função para encapsular a instância e atualização dos dados"""
 	import time
 
 	start = time.perf_counter()
-	data = Estacoes(SQLSERVER_PARAMS, MONGO_URI, limit, parallel, read_cache, reprocess_sources)
+	data = Estacoes(
+		SQLSERVER_PARAMS,
+		MONGO_URI,
+		limit,
+		parallel,
+		read_cache,
+		reprocess_sources,
+		full=full,
+	)
 	data.update()
 	data.save()
 	mod_time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')

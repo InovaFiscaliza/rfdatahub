@@ -238,8 +238,8 @@
       "verify": [
         ".venv/bin/python scripts/main.py --help"
       ],
-      "passes": false,
-      "notes": "main.py reads SQL_TIMEOUT from env at import; --help may need .env present (it is)."
+      "passes": true,
+      "notes": "Completed: get_db defaults full=True and forwards it by keyword. --help exposes --full/--no-full; only these task hunks were staged from the pre-modified file."
     },
     {
       "id": "FULL-14",

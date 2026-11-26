@@ -82,3 +82,6 @@
 - FULL-11 completed: `Estacoes.save()` now persists `estacoes_full.parquet` when full mode has
   `df_full`, while preserving the grouped/discarded outputs and keeping inline logs as JSON
   strings. Focused tests confirm full and grouped save behavior.
+- FULL-13 completed: `scripts/main.py` exposes `--full/--no-full`, defaults to full output, and
+  forwards the option by keyword. CLI help passed; only the ticket-specific hunks were committed
+  from the file's pre-existing user edits.
