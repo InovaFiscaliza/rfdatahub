@@ -4,48 +4,48 @@
 
 # %% auto #0
 __all__ = [
-           'AGG_LICENCIAMENTO',
-           'AGG_SMP',
-           'APP_ANALISE_EN',
-           'APP_ANALISE_PT',
-           'BW',
-           'BW_MAP',
-           'CAT_COLUMNS',
-           'CHANNELS',
-           'COLS_RADCOM',
-           'COLS_SRD',
-           'COLS_STEL',
-           'DICT_LICENCIAMENTO',
-           'DICT_SRD',
-           'ESTACAO',
-           'ESTADOS',
-           'FILES',
-           'FLOAT_COLUMNS',
-           'IBGE_MUNICIPIOS',
-           'IBGE_POLIGONO',
-           'INT_COLUMNS',
-           'MALHA_IBGE',
-           'MAX_LAT',
-           'MAX_LONG',
-           'MIN_LAT',
-           'MIN_LONG',
-           'MONGO_SMP',
-           'MONGO_SRD',
-           'MONGO_TELECOM',
-           'PATH_COM',
-           'PATH_NAV',
-           'PROJECTION_LICENCIAMENTO',
-           'PROJECTION_SRD',
-           'REGEX_ESTADOS',
-           'RELATORIO_SRD',
-           'RE_BW',
-           'SIGLAS',
-           'SQL_RADCOM',
-           'SQL_STEL',
-           'SQL_VALIDA_COORD',
-           'STR_COLUMNS',
-           'TIMEOUT',
-           'VOR_ILS_DME',
+    "AGG_LICENCIAMENTO",
+    "AGG_SMP",
+    "APP_ANALISE_EN",
+    "APP_ANALISE_PT",
+    "BW",
+    "BW_MAP",
+    "CAT_COLUMNS",
+    "CHANNELS",
+    "COLS_RADCOM",
+    "COLS_SRD",
+    "COLS_STEL",
+    "DICT_LICENCIAMENTO",
+    "DICT_SRD",
+    "ESTACAO",
+    "ESTADOS",
+    "FILES",
+    "FLOAT_COLUMNS",
+    "IBGE_MUNICIPIOS",
+    "IBGE_POLIGONO",
+    "INT_COLUMNS",
+    "MALHA_IBGE",
+    "MAX_LAT",
+    "MAX_LONG",
+    "MIN_LAT",
+    "MIN_LONG",
+    "MONGO_SMP",
+    "MONGO_SRD",
+    "MONGO_TELECOM",
+    "PATH_COM",
+    "PATH_NAV",
+    "PROJECTION_LICENCIAMENTO",
+    "PROJECTION_SRD",
+    "REGEX_ESTADOS",
+    "RELATORIO_SRD",
+    "RE_BW",
+    "SIGLAS",
+    "SQL_RADCOM",
+    "SQL_STEL",
+    "SQL_VALIDA_COORD",
+    "STR_COLUMNS",
+    "TIMEOUT",
+    "VOR_ILS_DME",
 ]
 
 # %% ../nbs/00_constants.ipynb #2301aae9
@@ -57,7 +57,7 @@ TIMEOUT = 5
 RELATORIO_SRD = "http://sistemas.anatel.gov.br/se/eApp/reports/b/srd/resumo_sistema.php?id={}&state={}"
 ESTACAO = "http://sistemas.anatel.gov.br/se/public/view/b/srd.php?wfid=estacoes&id={}"
 MALHA_IBGE = "https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/municipio_2025/Brasil/BR_Municipios_2025.zip"
-FILES = Path(__file__).parent / "datasources" /  "arquivos"
+FILES = Path(__file__).parent / "datasources" / "arquivos"
 PATH_NAV = FILES / "VHF_NAV.csv"
 PATH_COM = FILES / "VHF_COM.csv"
 VOR_ILS_DME = FILES / "VOR_ILS_DME_Channel.csv"
@@ -91,13 +91,13 @@ COLS_STEL = [
 COLS_RADCOM = COLS_STEL + [
     "Potência_Transmissor(W)",
     "Polarização_Antena",
-    "Altura_Antena(m)",        
+    "Altura_Antena(m)",
 ]
 
 COLS_SRD = COLS_STEL + [
     "Potência_Transmissor(W)",
     "Polarização_Antena",
-    "Altura_Antena(m)",           
+    "Altura_Antena(m)",
     "Cota_Base_Torre(m)",
     "Ganho_Antena(dBd)",
     "Ângulo_Elevação_Antena",
@@ -332,7 +332,7 @@ DICT_LICENCIAMENTO = {
     "Latitude": "Latitude",
     "Longitude": "Longitude",
     "DesignacaoEmissao": "Designação_Emissão",
-    "state": "Status"
+    "state": "Status",
     # 'PotenciaTransmissorWatts': 'Potência_Transmissor(W)',
     # 'CodTipoAntena': 'Cod_Tipo_Antena',
     # 'Polarizacao': 'Polarização_Antena',
@@ -346,24 +346,23 @@ DICT_LICENCIAMENTO = {
 }
 
 PROJECTION_LICENCIAMENTO = {
-  "NumAto": 1.0,
-  "NumFistel": 1.0,
-  "NumServico": 1.0,
-  "NomeEntidade": 1.0,
-  "SiglaUf": 1.0,
-  "NumEstacao": 1.0,
-  "CodTipoClasseEstacao": 1.0,
-  "NomeMunicipio": 1.0,
-  "CodMunicipio": 1.0,
-  "DataValidade": 1.0,
-  "FreqTxMHz": 1.0,
-  "formId": 1.0,
-  "Tecnologia": 1.0,
-  "Latitude": 1.0,
-  "Longitude": 1.0,
-  "DesignacaoEmissao": 1.0,
-  "state": "$Status.state",
-
+    "NumAto": 1.0,
+    "NumFistel": 1.0,
+    "NumServico": 1.0,
+    "NomeEntidade": 1.0,
+    "SiglaUf": 1.0,
+    "NumEstacao": 1.0,
+    "CodTipoClasseEstacao": 1.0,
+    "NomeMunicipio": 1.0,
+    "CodMunicipio": 1.0,
+    "DataValidade": 1.0,
+    "FreqTxMHz": 1.0,
+    "formId": 1.0,
+    "Tecnologia": 1.0,
+    "Latitude": 1.0,
+    "Longitude": 1.0,
+    "DesignacaoEmissao": 1.0,
+    "state": "$Status.state",
 }
 
 # %% ../nbs/00_constants.ipynb #2cc85745
@@ -506,7 +505,7 @@ SQL_VALIDA_COORD = """
 """
 
 # %% ../nbs/00_constants.ipynb #ff102e0d
-REGEX_ESTADOS = f'({"|".join(ESTADOS)})'
+REGEX_ESTADOS = f"({'|'.join(ESTADOS)})"
 RE_BW = re.compile(r"^(\d{1,3})([HKMG])(\d{0,2})(\w{0,3})")
 
 # %% ../nbs/00_constants.ipynb #c168493d

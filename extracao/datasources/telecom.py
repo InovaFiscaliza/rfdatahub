@@ -79,7 +79,6 @@ class Telecom(Mosaico):
         """Clean the merged dataframe with the data from the MOSAICO page"""
         df = df.rename(columns=self.cols_mapping)
         df = self.split_designacao(df)
-        # Exclude duplicated rows based on AGG_LICENCIAMENTO columns and log
         df_sub = self.aggregate(df, AGG_LICENCIAMENTO, "MOSAICO-TELECOM: Agrupamento")
         df_sub["Fonte"] = "MOSAICO-LICENCIAMENTO"
         return df_sub.loc[:, self.columns]
