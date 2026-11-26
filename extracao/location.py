@@ -509,10 +509,12 @@ class Geography:
 
         candidates = []
         for axis, column in enumerate(columns):
-            for operation, scale in (("multiplicada", 10.0), ("dividida", 0.1)):
+            for operation, scale in (("%", 10.0), ("x", 0.1)):
                 shifted = coords.copy()
                 shifted[:, axis] *= scale
-                valid = ((np.abs(shifted) <= wgs84_limits) & (shifted != -1)).all(axis=1)
+                valid = ((np.abs(shifted) <= wgs84_limits) & (shifted != -1)).all(
+                    axis=1
+                )
                 valid &= shifted[:, axis] != coords[:, axis]
                 positions = np.flatnonzero(valid)
                 points = shapely.points(shifted[positions, 1], shifted[positions, 0])
@@ -555,10 +557,7 @@ class Geography:
             ["column", "operation", "exact"]
         ):
             scope = "mesmo município" if exact else "mesma UF"
-            message = (
-                f"Coordenadas corrigidas (casa decimal, {scope}): "
-                f"{column} {operation} por 10."
-            )
+            message = f"Coordenadas corrigidas ({scope}): {column} {operation} por 10."
             rows = pd.Series(self.df.index.isin(group.index), index=self.df.index)
             self._replace_columns(
                 ["_decimal_coordinate"], [column], rows, message, float_cols=True

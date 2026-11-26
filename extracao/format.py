@@ -333,10 +333,10 @@ def merge_dicts(json_log: str):
 
     for log_dict in merged_dict.values():
         column = log_dict.get("Coluna")
-        if column == "#Estação" and (original := log_dict.get("Original")):
+        if column == "#Estação" and (original := log_dict.get("Valor")):
             value = literal_eval(original)
             if isinstance(value, list):
-                log_dict["Original"] = str(sorted(set(value)))
+                log_dict["Valor"] = str(sorted(set(value)))
         output_list.append(log_dict)
 
     return json.dumps(output_list, ensure_ascii=False)

@@ -210,7 +210,7 @@ class Smp(Mosaico):
         df["Multiplicidade"] = df.Multiplicidade.astype("int")
         row_filter = df["Multiplicidade"] > 1
         for column in ("Latitude", "Longitude"):
-            log = f"MOSAICO-SMP: Registro agrupado, {column} do Município inserida"
+            log = f"MOSAICO-SMP: Agrupamento: {column} do Município inserida"
             Mosaico.register_log(df, log, column, row_filter)
         row_filter &= df["Latitude_IBGE"].notna() & df["Longitude_IBGE"].notna()
         df.loc[row_filter, "Latitude"] = df.loc[row_filter, "Latitude_IBGE"]
