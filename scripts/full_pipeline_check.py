@@ -10,7 +10,12 @@ import pandas as pd
 import typer
 from fastcore.foundation import L
 
-from extracao.constants import AGG_LICENCIAMENTO, IBGE_MUNICIPIOS, IBGE_POLIGONO
+from extracao.constants import (
+    AGG_LICENCIAMENTO,
+    AGG_SMP,
+    IBGE_MUNICIPIOS,
+    IBGE_POLIGONO,
+)
 from extracao.datasources.aeronautica import Aero
 from extracao.datasources.sitarweb import Radcom, Stel
 from extracao.datasources.smp import Smp
@@ -130,9 +135,55 @@ def full_invariants(
             f"Grouped Telecom multiplicity sum ({grouped_multiplicity}) does not "
             f"equal eligible full rows ({full_eligible_rows})."
         )
+
+    grouped_smp_source = Smp(read_cache=True)
+    grouped_smp_source.folder = CACHE_DIR
+    _sample_raw_cache(grouped_smp_source, sample)
+    grouped_smp_source.update()
+
+    full_smp_source = Smp(read_cache=True, full=True)
+    full_smp_source.folder = CACHE_DIR
+    _sample_raw_cache(full_smp_source, sample)
+    full_smp_source.update()
+
+    grouped_smp = grouped_smp_source.df
+    grouped_downlink = grouped_smp["Fonte"] == "MOSAICO-LICENCIAMENTO"
+    grouped_smp_multiplicity = pd.to_numeric(
+        grouped_smp.loc[grouped_downlink, "Multiplicidade"], errors="raise"
+    ).sum()
+    full_smp = full_smp_source.df
+    full_downlink = full_smp["Fonte"] == "MOSAICO-LICENCIAMENTO"
+    retained_smp_agg_cols = [column for column in AGG_SMP if column in full_smp]
+    missing_smp_agg_cols = set(AGG_SMP) - set(retained_smp_agg_cols)
+    if missing_smp_agg_cols != {"Tecnologia"}:
+        raise AssertionError(
+            f"Full SMP output is missing unexpected aggregation columns: "
+            f"{sorted(missing_smp_agg_cols)}"
+        )
+    raw_smp = pd.read_parquet(CACHE_DIR / "smp_raw.parquet")
+    if sample:
+        raw_smp = raw_smp.head(sample)
+    if raw_smp["Tecnologia"].isna().any():
+        raise AssertionError(
+            "The raw SMP cache contains missing Tecnologia values, so the "
+            "post-format invariant cannot inspect all AGG_SMP columns."
+        )
+    # MONGO_SMP requires Tecnologia to be non-null; it is not retained in COLS_STEL.
+    full_smp_eligible = full_smp.loc[
+        full_downlink, retained_smp_agg_cols
+    ].notna().all(axis=1).sum()
+    if grouped_smp_multiplicity != full_smp_eligible:
+        raise AssertionError(
+            f"Grouped SMP downlink multiplicity sum ({grouped_smp_multiplicity}) "
+            f"does not equal eligible full downlink rows ({full_smp_eligible})."
+        )
     print(
         f"Telecom invariants hold: grouped={len(grouped):,}, "
         f"full={len(full):,}, eligible={full_eligible_rows:,}"
+    )
+    print(
+        f"SMP downlink invariant holds: grouped multiplicity="
+        f"{grouped_smp_multiplicity:,}, full eligible={full_smp_eligible:,}"
     )
 
 

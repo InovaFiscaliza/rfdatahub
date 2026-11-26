@@ -164,5 +164,39 @@ class TelecomFullFormatTests(unittest.TestCase):
         self.assertNotIn("Multiplicidade", saved.columns)
 
 
+class SmpFullFormatTests(unittest.TestCase):
+    def test_full_format_preserves_duplicate_downlink_and_generated_uplink_rows(self):
+        raw = TelecomFullFormatTests.make_raw_rows()
+        raw["FreqTxMHz"] = "461.05"
+        raw["Tecnologia"] = "4G"
+        source = Smp(read_cache=True, full=True)
+        result = source._format(raw)
+
+        downlink = result[result["Fonte"] == "MOSAICO-LICENCIAMENTO"]
+        uplink = result[result["Fonte"] == "CANALIZACAO-SMP"]
+        self.assertEqual(len(downlink), 2)
+        self.assertEqual(len(uplink), 2)
+        self.assertEqual(uplink["Classe"].tolist(), ["ML", "ML"])
+        self.assertEqual(downlink["Latitude"].tolist(), ["-23.5", "-23.5"])
+        self.assertEqual(downlink["Longitude"].tolist(), ["-46.6", "-46.6"])
+        self.assertNotIn("Multiplicidade", result.columns)
+        self.assertEqual(
+            result.columns.tolist(),
+            [column for column in COLS_STEL if column != "Multiplicidade"],
+        )
+        self.assertFalse(
+            result["Log"].str.contains("Agrupamento: Latitude do Município").any()
+        )
+
+        with tempfile.TemporaryDirectory() as folder:
+            source.folder = Path(folder)
+            source.df = result
+            source.save()
+            saved = pd.read_parquet(Path(folder) / "smp_full.parquet")
+
+        self.assertEqual(len(saved), 4)
+        self.assertNotIn("Multiplicidade", saved.columns)
+
+
 if __name__ == "__main__":
     unittest.main()

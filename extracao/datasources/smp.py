@@ -32,7 +32,6 @@ load_dotenv(find_dotenv())
 
 # %% ../../nbs/01g_smp.ipynb #577c25a1
 MONGO_URI = os.environ.get("MONGO_URI")
-pd.options.mode.copy_on_write = True
 
 
 # %% ../../nbs/01g_smp.ipynb #d6a98955
@@ -124,8 +123,8 @@ class Smp(Mosaico):
         grouped_channels = df.groupby(
             ["Início_Canal_Down", "Fim_Canal_Down"], as_index=False
         ).size()
-        grouped_channels.sort_values(
-            "size", ascending=False, inplace=True, ignore_index=True
+        grouped_channels = grouped_channels.sort_values(
+            "size", ascending=False, ignore_index=True
         )
         grouped_channels["Canalização"] = "Inválida"
         grouped_channels["Offset"] = np.nan
@@ -237,7 +236,7 @@ class Smp(Mosaico):
         down["Classe"] = "FB"
         up = df.drop("Frequência", axis=1)
         up = up.rename(columns={"Frequência_Recepção": "Frequência"})
-        up.dropna(subset="Frequência", inplace=True)
+        up = up.dropna(subset="Frequência")
         up["Fonte"] = "CANALIZACAO-SMP"
         up["Classe"] = "ML"
         return pd.concat([down, up], ignore_index=True)
@@ -249,9 +248,17 @@ class Smp(Mosaico):
         """Formats, cleans, groups, adds and standardizes the queried data from the database"""
         df = df.rename(columns=self.cols_mapping)
         df = self.split_designacao(df)
-        df = self.aggregate(df, AGG_SMP, "MOSAICO-SMP: Agrupamento")
+        if self.full:
+            df = self.ungrouped(df)
+        else:
+            df = self.aggregate(df, AGG_SMP, "MOSAICO-SMP: Agrupamento")
         df = self.validate_channels(df)
         df = self.generate_uplink(df)
         df = self.substitute_coordinates(df)
         df = self.input_fixed_columns(df)
-        return df.loc[:, self.columns]
+        columns = (
+            [column for column in self.columns if column != "Multiplicidade"]
+            if self.full
+            else self.columns
+        )
+        return df.loc[:, columns]

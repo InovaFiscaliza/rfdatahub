@@ -58,3 +58,7 @@
   result; grouped mode is unchanged. Added synthetic raw-format/save coverage and a
   `full-invariants` harness command. Sample check: grouped 11,924 rows, full 50,000, all 50,000
   eligible. Focused tests and grouped baseline comparison passed.
+- FULL-07 completed: SMP full mode preserves duplicate downlink rows and generated uplinks,
+  keeps original coordinates, and omits Multiplicidade. Full invariant sample: grouped downlink
+  multiplicity 49,985 equals 49,985 eligible full rows. Focused tests, grouped comparison, and
+  invariant checks passed with pandas deprecations promoted to errors.
