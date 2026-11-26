@@ -5,11 +5,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
+from fastcore.foundation import L
 
 from extracao.constants import AGG_LICENCIAMENTO, COLS_STEL
 from extracao.datasources.mosaico import Mosaico
 from extracao.datasources.smp import Smp
 from extracao.datasources.telecom import Telecom
+from extracao.stations import Estacoes
 
 
 class MosaicoUngroupedTests(unittest.TestCase):
@@ -196,6 +198,61 @@ class SmpFullFormatTests(unittest.TestCase):
 
         self.assertEqual(len(saved), 4)
         self.assertNotIn("Multiplicidade", saved.columns)
+
+
+class StationConsolidationTests(unittest.TestCase):
+    def test_consolidate_can_reuse_input_sources_without_mutating_the_list(self):
+        anatel = pd.DataFrame(
+            {
+                "Frequência": ["100", "200"],
+                "Latitude": ["-23", "-24"],
+                "Longitude": ["-46", "-47"],
+                "Fonte": ["STEL", "STEL"],
+                "Log": ["[]", "[]"],
+            },
+            dtype="string",
+        )
+        aero = pd.DataFrame(
+            {
+                "Frequência": ["300"],
+                "Latitude": ["-25"],
+                "Longitude": ["-48"],
+                "Fonte": ["AERO"],
+                "Log": ["[]"],
+            },
+            dtype="string",
+        )
+        sources = L([anatel, aero])
+        stations = Estacoes(read_cache=True)
+
+        class IdentityGeography:
+            def __init__(self, df):
+                self.df = df
+
+            def validate(self):
+                return self.df
+
+        with (
+            patch(
+                "extracao.stations.merge_on_frequency",
+                side_effect=lambda left, right: pd.concat(
+                    [left, right], ignore_index=True
+                ),
+            ),
+            patch("extracao.stations.Geography", IdentityGeography),
+            patch.object(Estacoes, "_simplify_sources", side_effect=lambda df: df),
+            patch.object(
+                Estacoes, "_remove_invalid_frequencies", side_effect=lambda df: df
+            ),
+        ):
+            first = stations._consolidate(sources)
+            second = stations._consolidate(sources)
+
+        self.assertEqual(len(sources), 2)
+        pd.testing.assert_frame_equal(sources[0], anatel)
+        pd.testing.assert_frame_equal(sources[1], aero)
+        self.assertEqual(len(first), 3)
+        pd.testing.assert_frame_equal(first, second)
 
 
 if __name__ == "__main__":

@@ -155,8 +155,8 @@
         ".venv/bin/python scripts/full_pipeline_check.py compare --sample 50000",
         ".venv/bin/python -m unittest tests.test_full_mode"
       ],
-      "passes": false,
-      "notes": "Independent of FULL-03..07; can be done in any order after FULL-02."
+      "passes": true,
+      "notes": "Completed: _consolidate is reusable and leaves the input L unchanged. Grouped sample outputs match the baseline."
     },
     {
       "id": "FULL-09",

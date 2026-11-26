@@ -67,3 +67,7 @@
   enabling for pandas versions before 3 in `extracao/__init__.py`. The grouped sample comparison
   and Telecom/SMP invariants pass with `Pandas4Warning` promoted to errors; full unittest
   discovery reports only the two pre-existing failures above.
+- FULL-08 completed: extracted non-mutating `Estacoes._consolidate` from `_format`, keeping log
+  processing and output-column selection in `_format`. A focused test consolidates the same
+  source list twice and verifies its length and frames are unchanged. Targeted tests and the
+  50,000-row grouped baseline comparison passed.

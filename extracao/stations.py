@@ -138,9 +138,9 @@ class Estacoes(Base):
         df["Log"] = pd.to_numeric(labels, downcast="integer")
         return df
 
-    def _format(self, dfs: L) -> pd.DataFrame:
-        aero = dfs.pop()
-        anatel = pd.concat(dfs, ignore_index=True).astype("string")
+    def _consolidate(self, dfs: L) -> pd.DataFrame:
+        aero = dfs[-1]
+        anatel = pd.concat(dfs[:-1], ignore_index=True).astype("string")
         df = merge_on_frequency(anatel, aero)
         df = Geography(df).validate()
         df = Estacoes._simplify_sources(df)
@@ -148,6 +148,9 @@ class Estacoes(Base):
         df = df.astype("string")
         for column in df.columns:
             df[column] = df[column].str.replace(r"^-1\.0$|^\s$", "-1", regex=True)
-        df = df.fillna("-1").astype("category")
+        return df.fillna("-1").astype("category")
+
+    def _format(self, dfs: L) -> pd.DataFrame:
+        df = self._consolidate(dfs)
         df = self.process_log(df)
         return df.loc[:, self.columns]
