@@ -1,5 +1,22 @@
 project:
   type: website
+  render:
+    - index.ipynb
+    - 00_constants.ipynb
+    - 00b_format.ipynb
+    - 01a_connectors.ipynb
+    - 01b_base.ipynb
+    - 01c_sitarweb.ipynb
+    - 01d_mosaico.ipynb
+    - 01e_srd.ipynb
+    - 01f_telecom.ipynb
+    - 01g_smp.ipynb
+    - 02a_icao.ipynb
+    - 02b_aisweb.ipynb
+    - 02c_aisgeo.ipynb
+    - 02d_redemet.ipynb
+    - 03_aero.ipynb
+    - 04_estacoes_docs.ipynb
   preview:
     port: 3000
     browser: false
@@ -30,26 +47,42 @@ website:
   navbar:
     collapse-below: lg
     left:
-      - text: "Principal"
-        href: 05_main.ipynb
-      - text: "Leitura"
-        href: 04_reading.ipynb
-      - text: "Atualização"
-        href: 02_updates.ipynb
+      - text: "Início"
+        href: index.ipynb
+      - text: "Consolidação"
+        href: 04_estacoes_docs.ipynb
+      - text: "Fontes"
+        menu:
+          - text: "SITARWEB"
+            href: 01c_sitarweb.ipynb
+          - text: "SRD"
+            href: 01e_srd.ipynb
+          - text: "Mosaico"
+            href: 01d_mosaico.ipynb
+          - text: "Telecomunicações"
+            href: 01f_telecom.ipynb
+          - text: "Serviço Móvel Pessoal"
+            href: 01g_smp.ipynb
+          - text: "Aeronáutica"
+            href: 03_aero.ipynb
       - text: "API"
         menu:
           - text: "Constantes"
             href: 00_constants.ipynb
           - text: "Formatação"
-            href: 03_format.ipynb
+            href: 00b_format.ipynb
+          - text: "Base"
+            href: 01b_base.ipynb
+          - text: "Conectores"
+            href: 01a_connectors.ipynb
           - text: "ICAO"
-            href: 06_icao.ipynb
+            href: 02a_icao.ipynb
           - text: "AISWEB"
-            href: 07_aisweb.ipynb
+            href: 02b_aisweb.ipynb
           - text: "AISGEO"
-            href: 08_aisgeo.ipynb
+            href: 02c_aisgeo.ipynb
           - text: "REDEMET"
-            href: 09_redemet.ipynb
+            href: 02d_redemet.ipynb
       - text: "Ajuda"
         menu:
           - text: "Reporte um problema"
