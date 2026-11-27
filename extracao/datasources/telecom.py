@@ -15,13 +15,15 @@ from dotenv import find_dotenv, load_dotenv
 
 from extracao.constants import (
     AGG_LICENCIAMENTO,
+    COL_GRUPO,
+    COL_GRUPO_PRINCIPAL,
     COLS_STEL,
     DICT_LICENCIAMENTO,
     MONGO_TELECOM,
     PROJECTION_LICENCIAMENTO,
 )
 
-from .mosaico import Mosaico
+from .mosaico import Mosaico, full_columns
 
 # %% ../../nbs/01f_telecom.ipynb #69f77676
 load_dotenv(find_dotenv())
@@ -73,6 +75,14 @@ class Telecom(Mosaico):
     def cols_mapping(self):
         return DICT_LICENCIAMENTO
 
+    @property
+    def agg_cols(self):
+        return AGG_LICENCIAMENTO
+
+    @property
+    def agg_log(self):
+        return "MOSAICO-TELECOM: Agrupamento"
+
     def extraction(self) -> pd.DataFrame:
         pipeline = [{"$match": self.query}, {"$project": self.projection}]
         if self.limit > 0:
@@ -89,12 +99,10 @@ class Telecom(Mosaico):
         df = df.rename(columns=self.cols_mapping)
         df = self.split_designacao(df)
         if self.full:
-            df_sub = self.ungrouped(df)
-            columns = [column for column in self.columns if column != "Multiplicidade"]
+            df_sub = self.tag_groups(self.ungrouped(df), self.agg_cols, self.stem)
+            columns = full_columns(self.columns, (COL_GRUPO, COL_GRUPO_PRINCIPAL))
         else:
-            df_sub = self.aggregate(
-                df, AGG_LICENCIAMENTO, "MOSAICO-TELECOM: Agrupamento"
-            )
+            df_sub = self.aggregate(df, self.agg_cols, self.agg_log)
             columns = self.columns
         df_sub["Fonte"] = "MOSAICO-LICENCIAMENTO"
         return df_sub.loc[:, columns]

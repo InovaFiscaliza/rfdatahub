@@ -19,6 +19,7 @@ from extracao.constants import (
     IBGE_POLIGONO,
 )
 from extracao.datasources.aeronautica import Aero
+from extracao.datasources.mosaico import full_columns
 from extracao.datasources.sitarweb import Radcom, Stel
 from extracao.datasources.smp import Smp
 from extracao.datasources.srd import SRD
@@ -114,13 +115,20 @@ def _run_grouped(output_dir: Path, sample: int) -> dict[str, pd.DataFrame]:
 
 
 def _run_full(output_dir: Path, sample: int) -> dict[str, pd.DataFrame]:
-    sources = _load_offline_sources(output_dir, sample)
-    _process_source(Telecom(read_cache=True, full=True), output_dir, sample)
-    _process_source(Smp(read_cache=True, full=True), output_dir, sample)
+    _check_offline_inputs()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    telecom = _process_source(Telecom(read_cache=True, full=True), output_dir, sample)
+    smp = _process_source(Smp(read_cache=True, full=True), output_dir, sample)
+    others = [
+        _process_source(source, output_dir, sample)
+        for source in (SRD(read_cache=True), Stel(read_cache=True), Radcom(read_cache=True))
+    ]
+    aero_source = Aero(read_cache=True)
+    aero_source.folder = CACHE_DIR
 
     stations = Estacoes(read_cache=True, parallel=False, full=True)
     stations.folder = output_dir
-    for source, df in zip(stations.sources, sources):
+    for source, df in zip(stations.sources, [telecom, smp, *others, aero_source.df]):
         source.folder = output_dir
         source.df = df
     stations.update()
@@ -128,8 +136,8 @@ def _run_full(output_dir: Path, sample: int) -> dict[str, pd.DataFrame]:
     stations._save(stations.df_full, output_dir, "estacoes_full")
 
     return {
-        "telecom": pd.read_parquet(output_dir / "telecom.parquet"),
-        "smp": pd.read_parquet(output_dir / "smp.parquet"),
+        "telecom_full": pd.read_parquet(output_dir / "telecom_full.parquet"),
+        "smp_full": pd.read_parquet(output_dir / "smp_full.parquet"),
         "estacoes": pd.read_parquet(output_dir / "estacoes.parquet"),
         "log": pd.read_parquet(output_dir / "log.parquet"),
         "estacoes_full": pd.read_parquet(output_dir / "estacoes_full.parquet"),
@@ -185,25 +193,13 @@ def full_invariants(
     ).sum()
     full_smp = full_smp_source.df
     full_downlink = full_smp["Fonte"] == "MOSAICO-LICENCIAMENTO"
-    retained_smp_agg_cols = [column for column in AGG_SMP if column in full_smp]
-    missing_smp_agg_cols = set(AGG_SMP) - set(retained_smp_agg_cols)
-    if missing_smp_agg_cols != {"Tecnologia"}:
+    missing_smp_agg_cols = set(AGG_SMP) - set(full_smp.columns)
+    if missing_smp_agg_cols:
         raise AssertionError(
-            f"Full SMP output is missing unexpected aggregation columns: "
+            f"Full SMP output is missing aggregation columns: "
             f"{sorted(missing_smp_agg_cols)}"
         )
-    raw_smp = pd.read_parquet(CACHE_DIR / "smp_raw.parquet")
-    if sample:
-        raw_smp = raw_smp.head(sample)
-    if raw_smp["Tecnologia"].isna().any():
-        raise AssertionError(
-            "The raw SMP cache contains missing Tecnologia values, so the "
-            "post-format invariant cannot inspect all AGG_SMP columns."
-        )
-    # MONGO_SMP requires Tecnologia to be non-null; it is not retained in COLS_STEL.
-    full_smp_eligible = full_smp.loc[
-        full_downlink, retained_smp_agg_cols
-    ].notna().all(axis=1).sum()
+    full_smp_eligible = full_smp.loc[full_downlink, AGG_SMP].notna().all(axis=1).sum()
     if grouped_smp_multiplicity != full_smp_eligible:
         raise AssertionError(
             f"Grouped SMP downlink multiplicity sum ({grouped_smp_multiplicity}) "
@@ -276,6 +272,19 @@ def _compare_grouped_outputs(actual_dir: Path, baseline_dir: Path) -> None:
         raise AssertionError("\n".join(differences))
 
 
+def _compare_grouped_rows(actual_dir: Path, baseline_dir: Path) -> None:
+    """Compare grouped stations ignoring row order and `Log`.
+    The full pipeline derives them from validated rows, so some logs legitimately differ.
+    """
+
+    def read(folder: Path) -> pd.DataFrame:
+        df = pd.read_parquet(folder / "estacoes.parquet").drop(columns="Log")
+        df = df.astype("string")
+        return df.sort_values(df.columns.tolist(), ignore_index=True)
+
+    assert_frames_equal("estacoes", read(actual_dir), read(baseline_dir))
+
+
 @app.command()
 def baseline(
     sample: int = typer.Option(0, min=0, help="Process only the first N telecom/SMP raw rows."),
@@ -322,19 +331,19 @@ def full(
         DEFAULT_OUTPUT_DIR / "full", help="Directory for grouped and full outputs."
     ),
 ) -> None:
-    """Run grouped and full station pipelines offline and check their outputs."""
+    """Run the full station pipeline offline and check its grouped and full outputs."""
     output_dir = out / f"sample_{sample}" if sample else out
     baseline_dir = DEFAULT_OUTPUT_DIR / f"sample_{sample}" if sample else DEFAULT_OUTPUT_DIR
     results = _run_full(output_dir, sample)
 
     try:
-        _compare_grouped_outputs(output_dir, baseline_dir)
+        _compare_grouped_rows(output_dir, baseline_dir)
     except AssertionError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(code=1) from error
 
     full = results["estacoes_full"]
-    expected_columns = [column for column in COLS_SRD if column != "Multiplicidade"]
+    expected_columns = full_columns(COLS_SRD)
     if full.columns.tolist() != expected_columns:
         raise AssertionError(
             f"Full station columns differ: {full.columns.tolist()} != {expected_columns}"
@@ -352,7 +361,7 @@ def full(
             f"({len(results['estacoes'])})."
         )
 
-    print(f"Grouped outputs match baseline: {baseline_dir}")
+    print(f"Grouped station rows match baseline: {baseline_dir}")
     print(f"Full station output written to {output_dir / 'estacoes_full.parquet'}")
 
 

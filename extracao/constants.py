@@ -5,10 +5,10 @@
 # %% auto #0
 __all__ = ['TIMEOUT', 'RELATORIO_SRD', 'ESTACAO', 'MALHA_IBGE', 'FILES', 'PATH_NAV', 'PATH_COM', 'VOR_ILS_DME', 'CHANNELS',
            'IBGE_MUNICIPIOS', 'IBGE_POLIGONO', 'COLS_STEL', 'COLS_RADCOM', 'COLS_SRD', 'FLOAT_COLUMNS', 'INT_COLUMNS',
-           'STR_COLUMNS', 'CAT_COLUMNS', 'AGG_LICENCIAMENTO', 'AGG_SMP', 'APP_ANALISE_PT', 'APP_ANALISE_EN', 'ESTADOS',
-           'SIGLAS', 'BW', 'BW_MAP', 'DICT_SRD', 'PROJECTION_SRD', 'DICT_LICENCIAMENTO', 'PROJECTION_LICENCIAMENTO',
-           'MONGO_TELECOM', 'MONGO_SRD', 'MONGO_SMP', 'SQL_RADCOM', 'SQL_STEL', 'SQL_VALIDA_COORD', 'REGEX_ESTADOS',
-           'RE_BW', 'MIN_LAT', 'MAX_LAT', 'MIN_LONG', 'MAX_LONG']
+           'STR_COLUMNS', 'CAT_COLUMNS', 'AGG_LICENCIAMENTO', 'AGG_SMP', 'COL_GRUPO', 'COL_GRUPO_PRINCIPAL',
+           'APP_ANALISE_PT', 'APP_ANALISE_EN', 'ESTADOS', 'SIGLAS', 'BW', 'BW_MAP', 'DICT_SRD', 'PROJECTION_SRD',
+           'DICT_LICENCIAMENTO', 'PROJECTION_LICENCIAMENTO', 'MONGO_TELECOM', 'MONGO_SRD', 'MONGO_SMP', 'SQL_RADCOM',
+           'SQL_STEL', 'SQL_VALIDA_COORD', 'REGEX_ESTADOS', 'RE_BW', 'MIN_LAT', 'MAX_LAT', 'MIN_LONG', 'MAX_LONG']
 
 # %% ../nbs/00_constants.ipynb #2301aae9
 import re
@@ -122,6 +122,10 @@ AGG_SMP = [
     "Classe_Emissão",
     "Tecnologia",
 ]
+
+# Helper columns kept in the full MOSAICO rows to derive the grouped output from them
+COL_GRUPO = "#Grupo"
+COL_GRUPO_PRINCIPAL = "#Grupo_Principal"
 
 APP_ANALISE_PT = (
     "Frequência",

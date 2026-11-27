@@ -18,6 +18,8 @@ from dotenv import find_dotenv, load_dotenv
 from extracao.constants import (
     AGG_SMP,
     CHANNELS,
+    COL_GRUPO,
+    COL_GRUPO_PRINCIPAL,
     COLS_STEL,
     DICT_LICENCIAMENTO,
     MONGO_SMP,
@@ -25,7 +27,7 @@ from extracao.constants import (
 )
 
 from ..location import Geography
-from .mosaico import Mosaico
+from .mosaico import Mosaico, full_columns
 
 # %% ../../nbs/01g_smp.ipynb #8d9145cb
 load_dotenv(find_dotenv())
@@ -76,6 +78,14 @@ class Smp(Mosaico):
     @property
     def cols_mapping(self):
         return DICT_LICENCIAMENTO
+
+    @property
+    def agg_cols(self):
+        return AGG_SMP
+
+    @property
+    def agg_log(self):
+        return "MOSAICO-SMP: Agrupamento"
 
     def extraction(self) -> pd.DataFrame:
         """This method returns a DataFrame with the results of the mongo query"""
@@ -203,8 +213,8 @@ class Smp(Mosaico):
         Mosaico.register_log(df, log, row_filter=valid)
         return df
 
+    @staticmethod
     def substitute_coordinates(
-        self,
         df: pd.DataFrame,  # Source dataframe
     ) -> pd.DataFrame:  # Source dataframe with coordinates replace for the city one
         """Substitute the coordinates for the central coordinates of the municipality
@@ -249,15 +259,15 @@ class Smp(Mosaico):
         df = df.rename(columns=self.cols_mapping)
         df = self.split_designacao(df)
         if self.full:
-            df = self.ungrouped(df)
+            df = self.tag_groups(self.ungrouped(df), self.agg_cols, self.stem)
         else:
-            df = self.aggregate(df, AGG_SMP, "MOSAICO-SMP: Agrupamento")
+            df = self.aggregate(df, self.agg_cols, self.agg_log)
         df = self.validate_channels(df)
         df = self.generate_uplink(df)
         df = self.substitute_coordinates(df)
         df = self.input_fixed_columns(df)
         columns = (
-            [column for column in self.columns if column != "Multiplicidade"]
+            full_columns(self.columns, (COL_GRUPO, COL_GRUPO_PRINCIPAL))
             if self.full
             else self.columns
         )

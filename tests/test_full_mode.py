@@ -7,8 +7,13 @@ from unittest.mock import patch
 import pandas as pd
 from fastcore.foundation import L
 
-from extracao.constants import AGG_LICENCIAMENTO, COLS_STEL
-from extracao.datasources.mosaico import Mosaico
+from extracao.constants import (
+    AGG_LICENCIAMENTO,
+    COL_GRUPO,
+    COL_GRUPO_PRINCIPAL,
+    COLS_STEL,
+)
+from extracao.datasources.mosaico import Mosaico, full_columns
 from extracao.datasources.smp import Smp
 from extracao.datasources.telecom import Telecom
 from extracao.stations import Estacoes
@@ -153,8 +158,10 @@ class TelecomFullFormatTests(unittest.TestCase):
         self.assertNotIn("Multiplicidade", result.columns)
         self.assertEqual(
             result.columns.tolist(),
-            [column for column in COLS_STEL if column != "Multiplicidade"],
+            full_columns(COLS_STEL, (COL_GRUPO, COL_GRUPO_PRINCIPAL)),
         )
+        self.assertTrue(result["Tecnologia"].notna().all())
+        self.assertEqual(result[COL_GRUPO].nunique(), 1)
 
         with tempfile.TemporaryDirectory() as folder:
             source.folder = Path(folder)
@@ -164,6 +171,7 @@ class TelecomFullFormatTests(unittest.TestCase):
 
         self.assertEqual(len(saved), 2)
         self.assertNotIn("Multiplicidade", saved.columns)
+        self.assertEqual(result[COL_GRUPO_PRINCIPAL].tolist(), ["True", "False"])
 
 
 class SmpFullFormatTests(unittest.TestCase):
@@ -184,8 +192,10 @@ class SmpFullFormatTests(unittest.TestCase):
         self.assertNotIn("Multiplicidade", result.columns)
         self.assertEqual(
             result.columns.tolist(),
-            [column for column in COLS_STEL if column != "Multiplicidade"],
+            full_columns(COLS_STEL, (COL_GRUPO, COL_GRUPO_PRINCIPAL)),
         )
+        self.assertTrue(result["Tecnologia"].notna().all())
+        self.assertEqual(result[COL_GRUPO].nunique(), 1)
         self.assertFalse(
             result["Log"].str.contains("Agrupamento: Latitude do Município").any()
         )
@@ -286,59 +296,160 @@ class InlineLogTests(unittest.TestCase):
             self.assertFalse((Path(folder) / "log.parquet").exists())
 
 
-class StationFullUpdateTests(unittest.TestCase):
-    def test_update_full_processes_full_sources_and_preserves_grouped_sources(self):
-        class ProcessingSource:
-            def __init__(self, df):
-                self.df = df
-                self.folder = None
-                self.updated = False
-                self.saved = False
+class TagGroupsTests(unittest.TestCase):
+    def test_tags_match_the_rows_aggregate_keeps(self):
+        rows = MosaicoUngroupedTests.make_rows()
+        tagged = Mosaico.tag_groups(
+            Mosaico.ungrouped(rows.copy()), AGG_LICENCIAMENTO, "telecom"
+        )
+        grouped = Mosaico.aggregate(rows, AGG_LICENCIAMENTO, "x")
 
-            def update(self):
-                self.updated = True
+        self.assertEqual(tagged[COL_GRUPO].tolist()[:2], ["telecom:0", "telecom:0"])
+        self.assertTrue(pd.isna(tagged.loc[2, COL_GRUPO]))
+        self.assertEqual(tagged[COL_GRUPO_PRINCIPAL].tolist(), ["True", "False", "False"])
+        principal = tagged[tagged[COL_GRUPO_PRINCIPAL] == "True"]
+        self.assertEqual(principal["Estação"].tolist(), grouped["Estação"].tolist())
 
-            def save(self):
-                self.saved = True
 
-        stations = Estacoes(read_cache=False, parallel=False, full=True)
-        other_frames = [
-            pd.DataFrame({"source": [str(index)]}, dtype="string")
-            for index in range(4)
+class StationGroupRowsTests(unittest.TestCase):
+    @staticmethod
+    def make_consolidated():
+        base = {
+            "Frequência": "100.0",
+            "Entidade": "Op",
+            "Fistel": "10",
+            "Serviço": "011",
+            "Latitude": "-23.5",
+            "Longitude": "-46.6",
+            "Código_Município": "3550308",
+            "Classe": "FB",
+            "Fonte": "MOSAICO-LICENCIAMENTO",
+            "Multiplicidade": "-1",
+            "Log": "[]",
+        }
+        rows = [
+            # Telecom group of two, the non principal row merged with an aero station
+            dict(base, Estação="1", **{COL_GRUPO: "telecom:0", COL_GRUPO_PRINCIPAL: "True"}),
+            dict(
+                base,
+                Estação="2",
+                Entidade="Op | Aero",
+                Fonte="MOSAICO-LICENCIAMENTO | AISWEB",
+                **{COL_GRUPO: "telecom:0", COL_GRUPO_PRINCIPAL: "False"},
+            ),
+            # Row with null grouping values: aggregate discards it
+            dict(base, Estação="3", **{COL_GRUPO: "-1", COL_GRUPO_PRINCIPAL: "False"}),
+            # SMP group of two in different places of the same city
+            dict(
+                base,
+                Estação="4",
+                Frequência="900.0",
+                Serviço="010",
+                Latitude="-23.6",
+                **{COL_GRUPO: "smp:0", COL_GRUPO_PRINCIPAL: "True"},
+            ),
+            dict(
+                base,
+                Estação="5",
+                Frequência="900.0",
+                Serviço="010",
+                Latitude="-23.7",
+                **{COL_GRUPO: "smp:0", COL_GRUPO_PRINCIPAL: "False"},
+            ),
+            # Source which is never grouped
+            dict(
+                base,
+                Estação="6",
+                Fonte="STEL",
+                Multiplicidade="1",
+                **{COL_GRUPO: "-1", COL_GRUPO_PRINCIPAL: "-1"},
+            ),
         ]
-        for source, frame in zip(stations.sources[2:], other_frames):
-            source.df = frame
-            source.folder = Path("unused")
-        grouped_df = pd.DataFrame({"grouped": ["unchanged"]})
-        stations.df = grouped_df
+        return pd.DataFrame(rows, dtype="string").astype("category")
 
-        telecom_full = ProcessingSource(pd.DataFrame({"full": ["telecom"]}))
-        smp_full = ProcessingSource(pd.DataFrame({"full": ["smp"]}))
-        full_station_frame = pd.DataFrame(
+    def test_group_rows_keeps_principals_and_applies_grouped_substitutions(self):
+        stats = pd.DataFrame(
             {
-                column: ["[]"] if column == "Log" else ["1"]
-                for column in stations.columns
-            }
+                "Multiplicidade": [2, 2],
+                "#Estação": ["[1, 2]", "[4, 5]"],
+                "Processamento": ["TELECOM: Agrupamento", "SMP: Agrupamento"],
+            },
+            index=pd.Index(["telecom:0", "smp:0"], name=COL_GRUPO),
         )
 
-        def consolidate(dfs):
-            self.assertEqual(len(dfs), 6)
-            for original, passed in zip(other_frames, dfs[2:]):
-                self.assertIsNot(original, passed)
-                pd.testing.assert_frame_equal(original, passed)
-            return full_station_frame.copy()
+        result = Estacoes._group_rows(self.make_consolidated(), stats)
+        result = result.set_index("Estação")
+
+        self.assertEqual(sorted(result.index), ["1", "4", "6"])
+        self.assertEqual(result.loc["1", "Fonte"], "MOSAICO-LICENCIAMENTO | AISWEB")
+        self.assertEqual(result.loc["1", "Entidade"], "Op | Aero")
+        self.assertEqual(result.loc["1", "Multiplicidade"], "2")
+        self.assertEqual(result.loc["6", "Multiplicidade"], "1")
+        telecom_log = json.loads(result.loc["1", "Log"])
+        self.assertEqual(
+            telecom_log,
+            [{"Log": "TELECOM: Agrupamento", "Coluna": "#Estação", "Original": "[1, 2]"}],
+        )
+        self.assertEqual(result.loc["4", "Latitude"], "-23.554753")
+        self.assertEqual(result.loc["4", "Longitude"], "-46.579009")
+        smp_log = json.loads(result.loc["4", "Log"])
+        self.assertEqual(smp_log[0]["Log"], "SMP: Agrupamento")
+        self.assertEqual(smp_log[1]["Original"], "-23.6")
+        self.assertEqual(json.loads(result.loc["6", "Log"]), [])
+
+    def test_group_stats_count_downlink_rows_per_group(self):
+        smp = Smp(read_cache=True, full=True)
+        df = pd.DataFrame(
+            {
+                "Estação": ["2", "1", "1", "3"],
+                "Fonte": [
+                    "MOSAICO-LICENCIAMENTO",
+                    "MOSAICO-LICENCIAMENTO",
+                    "CANALIZACAO-SMP",
+                    "MOSAICO-LICENCIAMENTO",
+                ],
+                COL_GRUPO: ["smp:0", "smp:0", "smp:0", pd.NA],
+            },
+            dtype="string",
+        )
+
+        stats = Estacoes._group_stats(df, smp)
+
+        self.assertEqual(stats.loc["smp:0", "Multiplicidade"], 2)
+        self.assertEqual(stats.loc["smp:0", "#Estação"], "[2, 1]")
+        self.assertTrue(stats.loc["smp:0", "Processamento"].startswith(smp.agg_log))
+
+
+class StationFullUpdateTests(unittest.TestCase):
+    def test_full_mode_uses_full_mosaico_sources_and_consolidates_once(self):
+        stations = Estacoes(read_cache=True, parallel=False, full=True)
+        self.assertTrue(stations.sources[0].full and stations.sources[1].full)
+        frame = StationGroupRowsTests.make_consolidated().astype("string")
+        columns = [*full_columns(stations.columns), "Multiplicidade", COL_GRUPO, COL_GRUPO_PRINCIPAL]
+        frame = frame.reindex(columns=columns, fill_value="-1").astype("category")
+        consolidate = patch.object(
+            stations, "_consolidate", return_value=frame.copy()
+        )
+        stats = pd.DataFrame(
+            {"Multiplicidade": [], "#Estação": [], "Processamento": []},
+            index=pd.Index([], name=COL_GRUPO),
+        )
+        dfs = L([frame.astype("string")] * 2 + [pd.DataFrame()] * 4)
 
         with (
-            patch("extracao.stations.Telecom", return_value=telecom_full),
-            patch("extracao.stations.Smp", return_value=smp_full),
-            patch.object(stations, "_consolidate", side_effect=consolidate),
+            consolidate as consolidated,
+            patch.object(Estacoes, "_group_stats", return_value=stats),
+            tempfile.TemporaryDirectory() as folder,
         ):
-            stations.update_full()
+            stations.folder = Path(folder)
+            stations.update_full(dfs)
 
-        self.assertTrue(telecom_full.updated and telecom_full.saved)
-        self.assertTrue(smp_full.updated and smp_full.saved)
-        self.assertIs(stations.df, grouped_df)
-        self.assertNotIn("Multiplicidade", stations.df_full.columns)
+        consolidated.assert_called_once()
+        self.assertEqual(len(stations.df_full), len(frame))
+        self.assertNotIn(COL_GRUPO, stations.df_full.columns)
+        self.assertIn("Tecnologia", stations.df_full.columns)
+        self.assertEqual(len(stations.df), 3)
+        self.assertEqual(stations.df.columns.tolist(), stations.columns)
 
 
 class StationSaveTests(unittest.TestCase):

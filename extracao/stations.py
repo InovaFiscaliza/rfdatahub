@@ -8,16 +8,18 @@ Docs: https://InovaFiscaliza.github.io/rfdatahub/estacoes.html.md"""
 __all__ = ['Estacoes']
 
 # %% ../nbs/04_estacoes.ipynb #4db3fa95
+import json
+
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 from fastcore.foundation import L
 from fastcore.parallel import parallel
 from fastcore.xtras import Path
 
-from .constants import COLS_SRD
+from .constants import COL_GRUPO, COL_GRUPO_PRINCIPAL, COLS_SRD
 from .datasources.aeronautica import Aero
 from .datasources.base import Base
-from .datasources.mosaico import MONGO_URI
+from .datasources.mosaico import MONGO_URI, Mosaico, full_columns
 from .datasources.sitarweb import SQLSERVER_PARAMS, Radcom, Stel
 from .datasources.smp import Smp
 from .datasources.srd import SRD
@@ -76,8 +78,8 @@ class Estacoes(Base):
         """Initializes the individual classes and saves them in a property list"""
         self.sources = L(
             [
-                Telecom(self.mongo_uri, self.limit, self.read_cache),
-                Smp(self.mongo_uri, self.limit, self.read_cache),
+                Telecom(self.mongo_uri, self.limit, self.read_cache, full=self.full),
+                Smp(self.mongo_uri, self.limit, self.read_cache, full=self.full),
                 SRD(self.mongo_uri, self.limit, self.read_cache),
                 Stel(self.sql_params, self.read_cache),
                 Radcom(self.sql_params, self.read_cache),
@@ -101,40 +103,135 @@ class Estacoes(Base):
 
     def update(self):
         dfs = self.extraction()
-        self.df = self._format(dfs)
         if self.full:
-            self.update_full()
+            self.update_full(dfs)
+        else:
+            self.df = self._format(dfs)
 
-    def update_full(self):
-        full_sources = L(
+    def update_full(self, dfs: L):
+        """Consolidate the full MOSAICO rows once and derive the grouped output from them"""
+        stats = pd.concat(
             [
-                Telecom(self.mongo_uri, self.limit, read_cache=True, full=True),
-                Smp(self.mongo_uri, self.limit, read_cache=True, full=True),
+                Estacoes._group_stats(df, source)
+                for df, source in zip(dfs[:2], self.sources[:2])
             ]
         )
-        for source, grouped_source in zip(full_sources, self.sources[:2]):
-            source.folder = grouped_source.folder
+        mosaico = [Estacoes._drop_duplicated_rows(df) for df in dfs[:2]]
+        others = [df.copy() for df in dfs[2:]]
+        df = self._consolidate(L([*mosaico, *others]))
+        grouped = Estacoes._group_rows(df, stats)
+        grouped = self.process_log(grouped)
+        self.df = grouped.loc[:, self.columns]
+        df = self.inline_log(df)
+        self.df_full = df.loc[:, full_columns(self.columns)]
 
-        if self.read_cache and not self.reprocess_sources:
-            full_dfs = full_sources.attrgot("df")
-        else:
-            if self.parallel:
-                full_sources = parallel(
-                    Estacoes._update_source,
-                    full_sources,
-                    n_workers=len(full_sources),
-                    progress=False,
-                )
-            else:
-                full_sources = full_sources.map(Estacoes._update_source)
-            full_dfs = full_sources.attrgot("df")
+    @staticmethod
+    def _group_stats(
+        df: pd.DataFrame,  # Full MOSAICO source output, with the group columns
+        source: Mosaico,  # Source instance that produced df
+    ) -> pd.DataFrame:  # Multiplicity, station list and log message for each group
+        """Compute, before consolidation, the information `aggregate` attaches to each group"""
+        df = df[df["Fonte"] == "MOSAICO-LICENCIAMENTO"]  # SMP uplink rows mirror downlink
+        df = df[df[COL_GRUPO].notna()]
+        # Same station id conversion `aggregate` applies
+        stations = (
+            df["Estação"].astype("string").fillna("-1").astype("int", errors="ignore")
+        )
+        grouped = stations.groupby(df[COL_GRUPO], sort=False)
+        stats = pd.DataFrame(
+            {
+                "Multiplicidade": grouped.size(),
+                "#Estação": grouped.apply(lambda x: list(x)).astype("string"),
+            }
+        )
+        stats["Processamento"] = f"{source.agg_log}: {source.agg_cols}"
+        return stats
 
-        other_dfs = [source.df.copy() for source in self.sources[2:]]
-        df_full = self._consolidate(L([*full_dfs, *other_dfs]))
-        df_full = self.inline_log(df_full)
-        self.df_full = df_full.loc[
-            :, [column for column in self.columns if column != "Multiplicidade"]
+    @staticmethod
+    def _drop_duplicated_rows(df: pd.DataFrame) -> pd.DataFrame:
+        """Drop identical rows ignoring the group columns, as consolidation used to"""
+        columns = [c for c in df.columns if c not in (COL_GRUPO, COL_GRUPO_PRINCIPAL)]
+        return df.loc[~df.astype("string").duplicated(subset=columns)].copy()
+
+    @staticmethod
+    def _prepend_log(log: str, entry: dict) -> str:
+        log = "[]" if log in ("", "-1") else log
+        return json.dumps([entry, *json.loads(log)], ensure_ascii=False)
+
+    @staticmethod
+    def _group_rows(
+        df: pd.DataFrame,  # Consolidated full rows
+        stats: pd.DataFrame,  # Output of `_group_stats`, indexed by group
+    ) -> pd.DataFrame:  # Grouped rows, as if MOSAICO had been aggregated
+        """Keep one row per MOSAICO group and apply the substitutions of the grouped pipeline"""
+        principal = df[COL_GRUPO_PRINCIPAL].astype("string")
+        # An aero station may have been merged with any row of the group
+        aero = (principal == "False") & df["Fonte"].astype("string").str.contains(
+            " | ", regex=False
+        )
+        aero = df.loc[aero, [COL_GRUPO, "Classe", "Fonte", "Entidade"]].astype("string")
+        aero = aero.drop_duplicates([COL_GRUPO, "Classe"]).set_index(
+            [COL_GRUPO, "Classe"]
+        )
+        # "-1": rows from sources which are never grouped
+        df = df.loc[principal.isin(["True", "-1"])].astype("string")
+        df = df.reset_index(drop=True)
+        if not aero.empty:
+            keys = pd.MultiIndex.from_frame(df[[COL_GRUPO, "Classe"]])
+            merged = aero.reindex(keys).reset_index(drop=True)
+            rows = merged["Fonte"].notna() & ~df["Fonte"].str.contains(" | ", regex=False)
+            df.loc[rows, ["Fonte", "Entidade"]] = merged.loc[rows, ["Fonte", "Entidade"]]
+
+        grouped = df[COL_GRUPO].isin(stats.index)
+        info = stats.reindex(df[COL_GRUPO]).reset_index(drop=True)
+        info["Multiplicidade"] = info["Multiplicidade"].astype("Int64")
+        df.loc[grouped, "Multiplicidade"] = info.loc[grouped, "Multiplicidade"].astype(
+            "string"
+        )
+        multiple = grouped & (info["Multiplicidade"] > 1).fillna(False)
+        df.loc[multiple, "Log"] = [
+            Estacoes._prepend_log(
+                log,
+                {"Log": processing, "Coluna": "#Estação", "Original": stations},
+            )
+            for log, processing, stations in zip(
+                df.loc[multiple, "Log"],
+                info.loc[multiple, "Processamento"],
+                info.loc[multiple, "#Estação"],
+            )
         ]
+        df = Estacoes._substitute_smp_coordinates(df, multiple)
+        # Groups differing only by columns absent from the grouped output (e.g. Tecnologia)
+        columns = [
+            c for c in df.columns if c not in (COL_GRUPO, COL_GRUPO_PRINCIPAL, "Tecnologia")
+        ]
+        df = df[~(df.duplicated(columns) & df[COL_GRUPO_PRINCIPAL].eq("True"))]
+        df = df.assign(
+            _freq=pd.to_numeric(df["Frequência"], errors="coerce"),
+            _lat=pd.to_numeric(df["Latitude"], errors="coerce"),
+            _lon=pd.to_numeric(df["Longitude"], errors="coerce"),
+        )
+        df = df.sort_values(["_freq", "_lat", "_lon"], ignore_index=True)
+        return df.drop(columns=["_freq", "_lat", "_lon"]).astype("category")
+
+    @staticmethod
+    def _substitute_smp_coordinates(
+        df: pd.DataFrame,  # Grouped rows
+        multiple: pd.Series,  # Rows which represent more than one station
+    ) -> pd.DataFrame:  # Grouped rows with the SMP coordinates substituted
+        """Grouped SMP rows don't have a single location: use the municipality centroid"""
+        rows = multiple & df[COL_GRUPO].str.startswith("smp:")
+        if not rows.any():
+            return df
+        columns = ["Código_Município", "Latitude", "Longitude", "Multiplicidade", "Log"]
+        smp = Smp.substitute_coordinates(df.loc[rows, columns].copy())
+        for column in ("Latitude", "Longitude"):
+            # Same float formatting the location validation produces
+            smp[column] = pd.to_numeric(smp[column], errors="coerce").astype("string")
+        df.loc[rows, ["Latitude", "Longitude", "Log"]] = smp[
+            ["Latitude", "Longitude", "Log"]
+        ].to_numpy()
+        return df
 
     def save(self, folder: str | Path | None = None):
         if folder is None:
